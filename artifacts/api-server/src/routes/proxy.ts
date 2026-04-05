@@ -273,7 +273,8 @@ function convertAnthropicToOpenAI(anthropicMsg: Anthropic.Message, model: string
 router.get("/models", requireAuth, (_req: Request, res: Response) => {
   const now = Math.floor(Date.now() / 1000);
   const models = [
-    // OpenAI
+    // OpenAI — chat/completions
+    { id: "gpt-5.4", object: "model", created: now, owned_by: "openai" },
     { id: "gpt-5.2", object: "model", created: now, owned_by: "openai" },
     { id: "gpt-5.1", object: "model", created: now, owned_by: "openai" },
     { id: "gpt-5", object: "model", created: now, owned_by: "openai" },
@@ -287,6 +288,9 @@ router.get("/models", requireAuth, (_req: Request, res: Response) => {
     { id: "gpt-4.1-nano", object: "model", created: now, owned_by: "openai" },
     { id: "gpt-4o", object: "model", created: now, owned_by: "openai" },
     { id: "gpt-4o-mini", object: "model", created: now, owned_by: "openai" },
+    // OpenAI — Responses API only
+    { id: "gpt-5.3-codex", object: "model", created: now, owned_by: "openai" },
+    { id: "gpt-5.2-codex", object: "model", created: now, owned_by: "openai" },
     // Anthropic
     { id: "claude-opus-4-6", object: "model", created: now, owned_by: "anthropic" },
     { id: "claude-opus-4-5", object: "model", created: now, owned_by: "anthropic" },
@@ -838,6 +842,86 @@ router.post("/messages", requireAuth, async (req: Request, res: Response) => {
   }
 
   res.status(400).json({ type: "error", error: { type: "invalid_request_error", message: `Unsupported model: ${model}` } });
+});
+
+// ─── POST /v1/responses (OpenAI Responses API pass-through) ──────────────────
+
+router.post("/responses", requireAuth, async (req: Request, res: Response) => {
+  const body = req.body as Record<string, unknown>;
+  const model = body.model as string | undefined;
+  const stream = Boolean(body.stream);
+
+  if (!model) {
+    res.status(400).json({ error: { message: "model is required", type: "invalid_request_error" } });
+    return;
+  }
+
+  if (!isOpenAIModel(model)) {
+    res.status(400).json({
+      error: {
+        message: `The Responses API only supports OpenAI models (gpt-*, o*). Model "${model}" is not supported here.`,
+        type: "invalid_request_error",
+      },
+    });
+    return;
+  }
+
+  const baseUrl = (process.env.AI_INTEGRATIONS_OPENAI_BASE_URL ?? "").replace(/\/+$/, "");
+  const apiKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY ?? "";
+
+  let upstream: globalThis.Response;
+  try {
+    upstream = await fetch(`${baseUrl}/responses`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${apiKey}`,
+        "Accept": stream ? "text/event-stream" : "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+  } catch (fetchErr) {
+    req.log.error({ err: fetchErr }, "Responses API fetch error");
+    res.status(502).json({ error: { message: "Upstream request failed", type: "api_error" } });
+    return;
+  }
+
+  if (stream) {
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+    res.setHeader("X-Accel-Buffering", "no");
+    res.flushHeaders();
+
+    if (!upstream.body) {
+      res.end();
+      return;
+    }
+
+    const reader = (upstream.body as unknown as ReadableStream<Uint8Array>).getReader();
+    const decoder = new TextDecoder();
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        res.write(decoder.decode(value, { stream: true }));
+        (res as any).flush?.();
+      }
+    } catch (streamErr) {
+      req.log.error({ err: streamErr }, "Responses API stream error");
+    } finally {
+      res.end();
+    }
+    return;
+  }
+
+  try {
+    const data = await upstream.json() as unknown;
+    res.status(upstream.status).json(data);
+  } catch (err) {
+    req.log.error({ err }, "Responses API non-stream error");
+    res.status(upstream.status || 500).json({ error: { message: "Upstream error", type: "api_error" } });
+  }
 });
 
 export default router;

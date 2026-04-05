@@ -51,6 +51,7 @@ const LIGHT: Record<string, string> = {
 };
 
 const OPENAI_MODELS = [
+  { id: "gpt-5.4", note: "Newest" },
   { id: "gpt-5.2", note: "Most capable" },
   { id: "gpt-5.1" },
   { id: "gpt-5" },
@@ -64,6 +65,8 @@ const OPENAI_MODELS = [
   { id: "gpt-4.1-nano", note: "Legacy" },
   { id: "gpt-4o", note: "Legacy" },
   { id: "gpt-4o-mini", note: "Legacy" },
+  { id: "gpt-5.3-codex", note: "Responses API" },
+  { id: "gpt-5.2-codex", note: "Responses API" },
 ];
 
 const ANTHROPIC_MODELS = [
@@ -97,6 +100,13 @@ const ENDPOINTS = [
     label: "Chat Completions",
     type: "OpenAI",
     desc: "OpenAI-compatible chat API. Supports streaming, tool calls, and all models via prefix routing",
+  },
+  {
+    method: "POST",
+    path: "/v1/responses",
+    label: "Responses API",
+    type: "Responses",
+    desc: "OpenAI Responses API pass-through. Supports gpt-5.4, gpt-5.3-codex, gpt-5.2-codex and all OpenAI models. Streaming supported.",
   },
   {
     method: "POST",
@@ -349,8 +359,8 @@ export default function App() {
         <Section title="API Endpoints" C={C}>
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {ENDPOINTS.map((ep) => {
-              const typeColor = ep.type === "OpenAI" ? C.blue : ep.type === "Anthropic" ? C.orange : C.gray;
-              const typeBg = ep.type === "OpenAI" ? C.blueDark : ep.type === "Anthropic" ? C.orangeDark : C.grayDark;
+              const typeColor = ep.type === "OpenAI" ? C.blue : ep.type === "Anthropic" ? C.orange : ep.type === "Responses" ? C.emerald : C.gray;
+              const typeBg = ep.type === "OpenAI" ? C.blueDark : ep.type === "Anthropic" ? C.orangeDark : ep.type === "Responses" ? C.emeraldDark : C.grayDark;
               return (
                 <Card key={ep.path} C={C}>
                   <div style={{ display: "flex", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
