@@ -33,7 +33,7 @@ const T_CN = {
   loginLoading: "验证中...",
   logout: "退出",
   online: "在线", offline: "离线", checking: "检查中...",
-  tabDashboard: "Dashboard", tabChat: "聊天测试", tabSettings: "设置",
+  tabDashboard: "Dashboard", tabChat: "聊天测试", tabModels: "模型列表", tabSettings: "设置",
   connDetails: "连接详情",
   proxyKeyHint: (k: string) => `当前 PROXY_API_KEY: ${k} · 可在"设置"页签修改`,
   apiEndpoints: "API 端点",
@@ -97,7 +97,7 @@ const T_EN = {
   loginLoading: "Verifying...",
   logout: "Logout",
   online: "Online", offline: "Offline", checking: "Checking...",
-  tabDashboard: "Dashboard", tabChat: "Chat Test", tabSettings: "Settings",
+  tabDashboard: "Dashboard", tabChat: "Chat Test", tabModels: "Models", tabSettings: "Settings",
   connDetails: "Connection Details",
   proxyKeyHint: (k: string) => `Current PROXY_API_KEY: ${k} · Change it in the Settings tab`,
   apiEndpoints: "API Endpoints",
@@ -153,20 +153,32 @@ const T_EN = {
 type TType = typeof T_CN;
 type Lang = "cn" | "en";
 
-const OPENAI_MODELS = [
-  { id: "gpt-4o", note: "Recommended" }, { id: "gpt-4o-mini", note: "Fast" },
-  { id: "gpt-4.1", note: "Latest" }, { id: "gpt-4.1-mini" }, { id: "gpt-4.1-nano", note: "Fastest" },
-  { id: "gpt-5", note: "Most capable" }, { id: "gpt-5-mini" },
-  { id: "o3-mini", note: "Reasoning" }, { id: "o4-mini", note: "Reasoning" },
+type Cap = "stream" | "tools" | "vision" | "reasoning" | "json";
+type ModelMeta = { id: string; note?: string; ctx: string; caps: Cap[]; route: string };
+
+const OPENAI_MODELS: ModelMeta[] = [
+  { id: "gpt-4o",       note: "Recommended",  ctx: "128K", caps: ["stream","tools","vision","json"], route: "/v1/chat/completions" },
+  { id: "gpt-4o-mini",  note: "Fast",         ctx: "128K", caps: ["stream","tools","vision","json"], route: "/v1/chat/completions" },
+  { id: "gpt-4.1",      note: "Latest",       ctx: "1M",   caps: ["stream","tools","vision","json"], route: "/v1/chat/completions" },
+  { id: "gpt-4.1-mini",                        ctx: "1M",   caps: ["stream","tools","vision","json"], route: "/v1/chat/completions" },
+  { id: "gpt-4.1-nano", note: "Fastest",      ctx: "1M",   caps: ["stream","tools","json"],          route: "/v1/chat/completions" },
+  { id: "gpt-5",        note: "Most capable", ctx: "1M",   caps: ["stream","tools","vision","json"], route: "/v1/chat/completions" },
+  { id: "gpt-5-mini",                          ctx: "1M",   caps: ["stream","tools","vision","json"], route: "/v1/chat/completions" },
+  { id: "o3-mini",      note: "Reasoning",    ctx: "200K", caps: ["stream","reasoning"],             route: "/v1/chat/completions" },
+  { id: "o4-mini",      note: "Reasoning",    ctx: "200K", caps: ["stream","tools","reasoning"],     route: "/v1/chat/completions" },
 ];
-const ANTHROPIC_MODELS = [
-  { id: "claude-opus-4-6", note: "Most capable" }, { id: "claude-opus-4-5" },
-  { id: "claude-sonnet-4-6", note: "Recommended" }, { id: "claude-sonnet-4-5" },
-  { id: "claude-haiku-4-5", note: "Fastest" },
+const ANTHROPIC_MODELS: ModelMeta[] = [
+  { id: "claude-opus-4-6",   note: "Most capable", ctx: "200K", caps: ["stream","tools","vision","json"], route: "/v1/chat/completions · /v1/messages" },
+  { id: "claude-opus-4-5",                          ctx: "200K", caps: ["stream","tools","vision","json"], route: "/v1/chat/completions · /v1/messages" },
+  { id: "claude-sonnet-4-6", note: "Recommended",  ctx: "200K", caps: ["stream","tools","vision","json"], route: "/v1/chat/completions · /v1/messages" },
+  { id: "claude-sonnet-4-5",                        ctx: "200K", caps: ["stream","tools","vision","json"], route: "/v1/chat/completions · /v1/messages" },
+  { id: "claude-haiku-4-5",  note: "Fastest",      ctx: "200K", caps: ["stream","tools","json"],          route: "/v1/chat/completions · /v1/messages" },
 ];
-const GEMINI_MODELS = [
-  { id: "gemini-2.5-pro", note: "Most capable" }, { id: "gemini-2.5-flash", note: "Recommended" },
-  { id: "gemini-3-flash-preview" }, { id: "gemini-3-pro-preview" },
+const GEMINI_MODELS: ModelMeta[] = [
+  { id: "gemini-2.5-pro",          note: "Most capable", ctx: "2M",  caps: ["stream","tools","vision","json"], route: "/v1/chat/completions" },
+  { id: "gemini-2.5-flash",        note: "Recommended",  ctx: "1M",  caps: ["stream","tools","vision","json"], route: "/v1/chat/completions" },
+  { id: "gemini-3-flash-preview",                         ctx: "1M",  caps: ["stream","tools","vision"],        route: "/v1/chat/completions" },
+  { id: "gemini-3-pro-preview",                           ctx: "2M",  caps: ["stream","tools","vision"],        route: "/v1/chat/completions" },
 ];
 const ALL_MODELS = [
   ...OPENAI_MODELS.map((m) => ({ ...m, provider: "OpenAI" as const })),
@@ -304,13 +316,15 @@ function LoginPage({ C, t, onLogin }: { C: Record<string, string>; t: TType; onL
   );
 }
 
-function ChatTab({ C, t, proxyApiKey, adminToken, onKeyRefresh, onForceRelogin }: {
+function ChatTab({ C, t, proxyApiKey, adminToken, onKeyRefresh, onForceRelogin, initModel }: {
   C: Record<string, string>; t: TType; proxyApiKey: string;
   adminToken: string; onKeyRefresh: (k: string) => void; onForceRelogin: () => void;
+  initModel?: string | null;
 }) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
-  const [selectedModel, setSelectedModel] = useState("gemini-2.5-flash");
+  const [selectedModel, setSelectedModel] = useState(initModel ?? "gemini-2.5-flash");
+  useEffect(() => { if (initModel) setSelectedModel(initModel); }, [initModel]);
   const [streaming, setStreaming] = useState(false);
   const [error, setError] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -530,6 +544,91 @@ function SettingsTab({ C, t, adminToken, proxyApiKey, onProxyKeyChange }: { C: R
   );
 }
 
+const CAP_LABEL: Record<Cap, { label: string; color: string }> = {
+  stream:    { label: "Streaming",  color: "hsl(185,80%,55%)" },
+  tools:     { label: "Tool Calls", color: "hsl(270,70%,65%)" },
+  vision:    { label: "Vision",     color: "hsl(142,65%,50%)" },
+  reasoning: { label: "Reasoning",  color: "hsl(30,90%,60%)"  },
+  json:      { label: "JSON Mode",  color: "hsl(210,80%,60%)" },
+};
+
+function ModelsTab({ C, t, onGoChat }: { C: Record<string, string>; t: TType; onGoChat: (modelId: string) => void }) {
+  const groups: { provider: string; color: string; bg: string; models: ModelMeta[] }[] = [
+    { provider: "OpenAI",   color: C.blue,   bg: C.blueDark,   models: OPENAI_MODELS },
+    { provider: "Anthropic",color: C.orange, bg: C.orangeDark, models: ANTHROPIC_MODELS },
+    { provider: "Gemini",   color: C.emerald,bg: C.emeraldDark,models: GEMINI_MODELS },
+  ];
+  const total = ALL_MODELS.length;
+
+  return (
+    <div>
+      {/* Stats bar */}
+      <div style={{ display: "flex", gap: 12, marginBottom: 28, flexWrap: "wrap" }}>
+        {[
+          { label: t.tabModels, value: `${total}`, color: C.text },
+          { label: "OpenAI",    value: `${OPENAI_MODELS.length}`,    color: C.blue },
+          { label: "Anthropic", value: `${ANTHROPIC_MODELS.length}`, color: C.orange },
+          { label: "Gemini",    value: `${GEMINI_MODELS.length}`,    color: C.emerald },
+        ].map((s) => (
+          <div key={s.label} style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 10, padding: "12px 20px", display: "flex", flexDirection: "column", gap: 4, minWidth: 90 }}>
+            <div style={{ fontSize: 22, fontWeight: 800, color: s.color, fontFamily: "monospace" }}>{s.value}</div>
+            <div style={{ fontSize: 12, color: C.textMuted, fontWeight: 600 }}>{s.label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Provider sections */}
+      {groups.map(({ provider, color, bg, models }) => (
+        <div key={provider} style={{ marginBottom: 32 }}>
+          {/* Provider header */}
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
+            <div style={{ width: 4, height: 22, borderRadius: 2, background: color, flexShrink: 0 }} />
+            <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: C.text }}>{provider}</h2>
+            <span style={{ background: bg, color, borderRadius: 20, padding: "2px 10px", fontSize: 12, fontWeight: 700 }}>{models.length} models</span>
+          </div>
+
+          {/* Model cards grid */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 12 }}>
+            {models.map((m) => (
+              <div key={m.id} style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12, padding: "16px 18px", display: "flex", flexDirection: "column", gap: 10, transition: "border-color 0.15s" }}
+                onMouseEnter={(e) => (e.currentTarget.style.borderColor = color)}
+                onMouseLeave={(e) => (e.currentTarget.style.borderColor = C.border)}>
+                {/* Model ID + note */}
+                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
+                  <code style={{ fontSize: 13, fontFamily: "monospace", color: C.text, fontWeight: 700, wordBreak: "break-all", flex: 1 }}>{m.id}</code>
+                  {m.note && <span style={{ background: bg, color, borderRadius: 4, padding: "2px 8px", fontSize: 11, fontWeight: 700, whiteSpace: "nowrap", flexShrink: 0 }}>{m.note}</span>}
+                </div>
+
+                {/* Context window */}
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ fontSize: 11, color: C.textDim, fontWeight: 600 }}>Context</span>
+                  <span style={{ background: C.bgInput, border: `1px solid ${C.border}`, borderRadius: 4, padding: "1px 8px", fontSize: 12, fontFamily: "monospace", color: C.cyan, fontWeight: 700 }}>{m.ctx}</span>
+                </div>
+
+                {/* Capabilities */}
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+                  {m.caps.map((cap) => {
+                    const meta = CAP_LABEL[cap];
+                    return <span key={cap} style={{ fontSize: 11, color: meta.color, background: `${meta.color}18`, border: `1px solid ${meta.color}40`, borderRadius: 4, padding: "2px 7px", fontWeight: 600 }}>{meta.label}</span>;
+                  })}
+                </div>
+
+                {/* Route + test button */}
+                <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 10, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
+                  <code style={{ fontSize: 11, color: C.textDim, fontFamily: "monospace", flex: 1, minWidth: 0, wordBreak: "break-all" }}>{m.route}</code>
+                  <button onClick={() => onGoChat(m.id)} style={{ background: `linear-gradient(135deg, ${C.gradientA}, ${C.gradientB})`, border: "none", borderRadius: 6, padding: "4px 12px", fontSize: 12, fontWeight: 700, color: "#fff", cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0 }}>
+                    {t.tabChat} →
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function App() {
   const [dark, setDark] = useState(true);
   const [lang, setLang] = useState<Lang>(() => (localStorage.getItem("portalLang") as Lang) ?? "cn");
@@ -538,7 +637,8 @@ export default function App() {
   const [adminToken, setAdminToken] = useState("");
   const [proxyApiKey, setProxyApiKey] = useState("");
   const [authChecked, setAuthChecked] = useState(false);
-  const [tab, setTab] = useState<"dashboard" | "chat" | "settings">("dashboard");
+  const [tab, setTab] = useState<"dashboard" | "chat" | "models" | "settings">("dashboard");
+  const [chatInitModel, setChatInitModel] = useState<string | null>(null);
   const C = dark ? DARK : LIGHT;
   const t = lang === "cn" ? T_CN : T_EN;
   const origin = window.location.origin;
@@ -579,9 +679,12 @@ export default function App() {
   const authHeader = `Authorization: Bearer ${proxyApiKey}`;
   const curlExample = `curl ${origin}/v1/chat/completions \\\n  -H "Content-Type: application/json" \\\n  -H "Authorization: Bearer ${proxyApiKey}" \\\n  -d '{\n    "model": "gemini-2.5-flash",\n    "messages": [{"role": "user", "content": "Hello!"}],\n    "stream": false\n  }'`;
 
+  const handleGoChat = (modelId: string) => { setChatInitModel(modelId); setTab("chat"); };
+
   const TABS = [
     { key: "dashboard" as const, label: t.tabDashboard, icon: "▣" },
     { key: "chat" as const, label: t.tabChat, icon: "💬" },
+    { key: "models" as const, label: t.tabModels, icon: "◈" },
     { key: "settings" as const, label: t.tabSettings, icon: "⚙" },
   ];
 
@@ -716,7 +819,11 @@ export default function App() {
         )}
 
         {tab === "chat" && (
-          <ChatTab C={C} t={t} proxyApiKey={proxyApiKey} adminToken={adminToken} onKeyRefresh={setProxyApiKey} onForceRelogin={handleForceRelogin} />
+          <ChatTab C={C} t={t} proxyApiKey={proxyApiKey} adminToken={adminToken} onKeyRefresh={setProxyApiKey} onForceRelogin={handleForceRelogin} initModel={chatInitModel} />
+        )}
+
+        {tab === "models" && (
+          <ModelsTab C={C} t={t} onGoChat={handleGoChat} />
         )}
 
         {tab === "settings" && (
