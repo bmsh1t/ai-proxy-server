@@ -32,5 +32,8 @@ app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 
 app.use("/api", router);
 app.use("/v1", proxyRouter);
+// Anthropic SDK appends its own /v1 prefix when base_url already ends with /v1,
+// resulting in /v1/v1/messages. Mount the same router at /v1/v1 to handle this.
+app.use("/v1/v1", proxyRouter);
 
 export default app;
