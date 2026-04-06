@@ -157,28 +157,40 @@ type Cap = "stream" | "tools" | "vision" | "reasoning" | "json";
 type ModelMeta = { id: string; note?: string; ctx: string; caps: Cap[]; route: string };
 
 const OPENAI_MODELS: ModelMeta[] = [
-  { id: "gpt-4o",       note: "Recommended",  ctx: "128K", caps: ["stream","tools","vision","json"], route: "/v1/chat/completions" },
-  { id: "gpt-4o-mini",  note: "Fast",         ctx: "128K", caps: ["stream","tools","vision","json"], route: "/v1/chat/completions" },
-  { id: "gpt-4.1",      note: "Latest",       ctx: "1M",   caps: ["stream","tools","vision","json"], route: "/v1/chat/completions" },
-  { id: "gpt-4.1-mini",                        ctx: "1M",   caps: ["stream","tools","vision","json"], route: "/v1/chat/completions" },
-  { id: "gpt-4.1-nano", note: "Fastest",      ctx: "1M",   caps: ["stream","tools","json"],          route: "/v1/chat/completions" },
-  { id: "gpt-5",        note: "Most capable", ctx: "1M",   caps: ["stream","tools","vision","json"], route: "/v1/chat/completions" },
-  { id: "gpt-5-mini",                          ctx: "1M",   caps: ["stream","tools","vision","json"], route: "/v1/chat/completions" },
-  { id: "o3-mini",      note: "Reasoning",    ctx: "200K", caps: ["stream","reasoning"],             route: "/v1/chat/completions" },
-  { id: "o4-mini",      note: "Reasoning",    ctx: "200K", caps: ["stream","tools","reasoning"],     route: "/v1/chat/completions" },
+  // ── GPT-5.x series ──
+  { id: "gpt-5.4",        note: "Latest",       ctx: "1M",   caps: ["stream","tools","vision","json"], route: "/v1/chat/completions" },
+  { id: "gpt-5.3-codex",  note: "Code",         ctx: "1M",   caps: ["stream","tools","json"],          route: "/v1/chat/completions · /v1/responses" },
+  { id: "gpt-5.2",                               ctx: "1M",   caps: ["stream","tools","vision","json"], route: "/v1/chat/completions" },
+  { id: "gpt-5.2-codex",  note: "Code",         ctx: "1M",   caps: ["stream","tools","json"],          route: "/v1/chat/completions · /v1/responses" },
+  { id: "gpt-5.1",                               ctx: "1M",   caps: ["stream","tools","vision","json"], route: "/v1/chat/completions" },
+  { id: "gpt-5",          note: "Most capable", ctx: "1M",   caps: ["stream","tools","vision","json"], route: "/v1/chat/completions" },
+  { id: "gpt-5-mini",                            ctx: "1M",   caps: ["stream","tools","vision","json"], route: "/v1/chat/completions" },
+  { id: "gpt-5-nano",     note: "Fastest",      ctx: "1M",   caps: ["stream","tools","json"],          route: "/v1/chat/completions" },
+  // ── GPT-4.x series ──
+  { id: "gpt-4.1",        note: "Recommended",  ctx: "1M",   caps: ["stream","tools","vision","json"], route: "/v1/chat/completions" },
+  { id: "gpt-4.1-mini",                          ctx: "1M",   caps: ["stream","tools","vision","json"], route: "/v1/chat/completions" },
+  { id: "gpt-4.1-nano",   note: "Fast",         ctx: "1M",   caps: ["stream","tools","json"],          route: "/v1/chat/completions" },
+  { id: "gpt-4o",                                ctx: "128K", caps: ["stream","tools","vision","json"], route: "/v1/chat/completions" },
+  { id: "gpt-4o-mini",                           ctx: "128K", caps: ["stream","tools","vision","json"], route: "/v1/chat/completions" },
+  // ── Reasoning series ──
+  { id: "o4-mini",        note: "Reasoning",    ctx: "200K", caps: ["stream","tools","reasoning"],     route: "/v1/chat/completions" },
+  { id: "o3",             note: "Reasoning",    ctx: "200K", caps: ["stream","reasoning"],             route: "/v1/chat/completions" },
+  { id: "o3-mini",        note: "Reasoning",    ctx: "200K", caps: ["stream","reasoning"],             route: "/v1/chat/completions" },
 ];
 const ANTHROPIC_MODELS: ModelMeta[] = [
   { id: "claude-opus-4-6",   note: "Most capable", ctx: "200K", caps: ["stream","tools","vision","json"], route: "/v1/chat/completions · /v1/messages" },
   { id: "claude-opus-4-5",                          ctx: "200K", caps: ["stream","tools","vision","json"], route: "/v1/chat/completions · /v1/messages" },
+  { id: "claude-opus-4-1",                          ctx: "200K", caps: ["stream","tools","vision","json"], route: "/v1/chat/completions · /v1/messages" },
   { id: "claude-sonnet-4-6", note: "Recommended",  ctx: "200K", caps: ["stream","tools","vision","json"], route: "/v1/chat/completions · /v1/messages" },
   { id: "claude-sonnet-4-5",                        ctx: "200K", caps: ["stream","tools","vision","json"], route: "/v1/chat/completions · /v1/messages" },
   { id: "claude-haiku-4-5",  note: "Fastest",      ctx: "200K", caps: ["stream","tools","json"],          route: "/v1/chat/completions · /v1/messages" },
 ];
 const GEMINI_MODELS: ModelMeta[] = [
-  { id: "gemini-2.5-pro",          note: "Most capable", ctx: "2M",  caps: ["stream","tools","vision","json"], route: "/v1/chat/completions" },
-  { id: "gemini-2.5-flash",        note: "Recommended",  ctx: "1M",  caps: ["stream","tools","vision","json"], route: "/v1/chat/completions" },
-  { id: "gemini-3-flash-preview",                         ctx: "1M",  caps: ["stream","tools","vision"],        route: "/v1/chat/completions" },
-  { id: "gemini-3-pro-preview",                           ctx: "2M",  caps: ["stream","tools","vision"],        route: "/v1/chat/completions" },
+  { id: "gemini-3.1-pro-preview",                       ctx: "2M",  caps: ["stream","tools","vision"],        route: "/v1/chat/completions" },
+  { id: "gemini-3-pro-preview",                         ctx: "2M",  caps: ["stream","tools","vision"],        route: "/v1/chat/completions" },
+  { id: "gemini-3-flash-preview",                       ctx: "1M",  caps: ["stream","tools","vision"],        route: "/v1/chat/completions" },
+  { id: "gemini-2.5-pro",   note: "Most capable",      ctx: "2M",  caps: ["stream","tools","vision","json"], route: "/v1/chat/completions" },
+  { id: "gemini-2.5-flash", note: "Recommended",       ctx: "1M",  caps: ["stream","tools","vision","json"], route: "/v1/chat/completions" },
 ];
 const ALL_MODELS = [
   ...OPENAI_MODELS.map((m) => ({ ...m, provider: "OpenAI" as const })),
