@@ -1,6 +1,6 @@
 # AI Proxy Server
 
-> **by kilig** — v2.4
+> **by kilig** — v2.5
 
 一个支持 OpenAI / Anthropic / Gemini 三家供应商的统一反向代理服务，对外暴露标准 OpenAI 兼容接口（`/v1`），并附带一个深色/浅色主题、中英双语的 React 管理门户。
 
@@ -512,6 +512,7 @@ pnpm --filter @workspace/api-portal run build
 
 | 版本 | 内容 |
 |------|------|
+| v2.5 | 默认明亮主题；隐藏余额卡片；多账号部署文档完善 |
 | v2.4 | Anthropic 原生协议 x-api-key 认证支持；/v1/v1 路径兼容；默认凭据更新为 admin999 |
 | v2.3 | 修复 401 自动恢复；中英双语；左侧导航栏；模型列表 Tab；28 个模型全量同步 |
 | v2.2 | 添加频率限制 (120 RPM)；Admin Token 机制；配置持久化 |
