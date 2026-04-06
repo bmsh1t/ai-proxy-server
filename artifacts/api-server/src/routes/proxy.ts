@@ -240,6 +240,7 @@ function convertAnthropicToOpenAI(anthropicMsg: Anthropic.Message, model: string
   const finishReason =
     anthropicMsg.stop_reason === "tool_use" ? "tool_calls"
     : anthropicMsg.stop_reason === "end_turn" ? "stop"
+    : anthropicMsg.stop_reason === "max_tokens" ? "length"
     : (anthropicMsg.stop_reason ?? "stop");
 
   const message: OpenAI.ChatCompletionMessage = {
@@ -320,6 +321,9 @@ router.post("/chat/completions", requireAuth, async (req: Request, res: Response
   const toolChoice = body.tool_choice as OpenAI.ChatCompletionCreateParams["tool_choice"] | undefined;
   const temperature = body.temperature as number | undefined;
   const maxTokens = body.max_tokens as number | undefined;
+  // Detect whether the client wants usage reported in the final streaming chunk
+  const streamOpts = body.stream_options as { include_usage?: boolean } | undefined;
+  const includeUsageInStream = Boolean(streamOpts?.include_usage);
 
   if (!model) {
     res.status(400).json({ error: { message: "model is required", type: "invalid_request_error" } });
@@ -384,8 +388,11 @@ router.post("/chat/completions", requireAuth, async (req: Request, res: Response
       messages,
     };
     if (system) anthropicParams.system = system;
-    if (tools) anthropicParams.tools = convertToolsToAnthropic(tools);
-    if (toolChoice) anthropicParams.tool_choice = convertToolChoiceToAnthropic(toolChoice);
+    // When tool_choice is "none", Anthropic has no equivalent — omit both tools and tool_choice
+    // so the model cannot invoke any functions.
+    const effectiveToolChoice = toolChoice === "none" ? undefined : toolChoice;
+    if (tools && toolChoice !== "none") anthropicParams.tools = convertToolsToAnthropic(tools);
+    if (effectiveToolChoice) anthropicParams.tool_choice = convertToolChoiceToAnthropic(effectiveToolChoice);
     if (temperature !== undefined) anthropicParams.temperature = temperature;
 
     if (stream) {
@@ -398,6 +405,9 @@ router.post("/chat/completions", requireAuth, async (req: Request, res: Response
       let messageId = `chatcmpl-${Date.now()}`;
       let toolUseBlocks: { id: string; name: string; inputJson: string }[] = [];
       let currentToolIndex = -1;
+      // Track usage tokens for stream_options.include_usage support
+      let streamInputTokens = 0;
+      let streamOutputTokens = 0;
 
       try {
         const anthropicStream = anthropic.messages.stream(anthropicParams);
@@ -405,12 +415,15 @@ router.post("/chat/completions", requireAuth, async (req: Request, res: Response
         for await (const event of anthropicStream) {
           if (event.type === "message_start") {
             messageId = event.message.id;
+            streamInputTokens = event.message.usage?.input_tokens ?? 0;
+            // Fix C: send content: null (not "") to correctly signal no text content yet.
+            // OpenAI spec uses null in the role-announcement chunk.
             const initChunk: OpenAI.ChatCompletionChunk = {
               id: messageId,
               object: "chat.completion.chunk",
               created: Math.floor(Date.now() / 1000),
               model,
-              choices: [{ index: 0, delta: { role: "assistant", content: "" }, finish_reason: null, logprobs: null }],
+              choices: [{ index: 0, delta: { role: "assistant", content: null }, finish_reason: null, logprobs: null }],
             };
             res.write(`data: ${JSON.stringify(initChunk)}\n\n`);
             (res as any).flush?.();
@@ -477,10 +490,13 @@ router.post("/chat/completions", requireAuth, async (req: Request, res: Response
               }
             }
           } else if (event.type === "message_delta") {
+            // Fix A (streaming): map max_tokens → length
             const finishReason =
               event.delta.stop_reason === "tool_use" ? "tool_calls"
               : event.delta.stop_reason === "end_turn" ? "stop"
+              : event.delta.stop_reason === "max_tokens" ? "length"
               : (event.delta.stop_reason ?? "stop");
+            streamOutputTokens = event.usage?.output_tokens ?? 0;
             const finalChunk: OpenAI.ChatCompletionChunk = {
               id: messageId,
               object: "chat.completion.chunk",
@@ -490,6 +506,24 @@ router.post("/chat/completions", requireAuth, async (req: Request, res: Response
             };
             res.write(`data: ${JSON.stringify(finalChunk)}\n\n`);
             (res as any).flush?.();
+
+            // Fix D/E: emit a separate usage-only chunk when the client requested it
+            if (includeUsageInStream) {
+              const usageChunk: OpenAI.ChatCompletionChunk = {
+                id: messageId,
+                object: "chat.completion.chunk",
+                created: Math.floor(Date.now() / 1000),
+                model,
+                choices: [],
+                usage: {
+                  prompt_tokens: streamInputTokens,
+                  completion_tokens: streamOutputTokens,
+                  total_tokens: streamInputTokens + streamOutputTokens,
+                },
+              };
+              res.write(`data: ${JSON.stringify(usageChunk)}\n\n`);
+              (res as any).flush?.();
+            }
           }
         }
         res.write("data: [DONE]\n\n");
