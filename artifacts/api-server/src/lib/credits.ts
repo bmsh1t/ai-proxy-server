@@ -91,7 +91,7 @@ export async function fetchCredits(): Promise<CreditsResult> {
     data: {
       totalGranted,
       remaining,
-      usedThisMonth: usedThisMonth ?? totalUsedFromGrants,
+      usedThisMonth: usedThisMonth ?? 0,
       currency: "usd",
       expiresAt,
     },

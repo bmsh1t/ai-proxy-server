@@ -94,6 +94,8 @@ const T_CN = {
   creditsExpires: "到期",
   creditsApiHint: "外部查询接口: GET /v1/credits (使用 proxyApiKey 鉴权)",
   creditsUnavailableNote: "余额暂不可用，请稍后重试",
+  creditsPartialNote: "部分数据不可用",
+  creditsUsedLabel: "已用",
 };
 
 const T_EN = {
@@ -168,6 +170,8 @@ const T_EN = {
   creditsExpires: "Expires",
   creditsApiHint: "External API: GET /v1/credits (auth with proxyApiKey)",
   creditsUnavailableNote: "Credits unavailable, please try again later",
+  creditsPartialNote: "partial data unavailable",
+  creditsUsedLabel: "used",
 };
 
 type TType = typeof T_CN;
@@ -827,14 +831,14 @@ export default function App() {
                         <div style={{ fontSize: 11, color: C.textMuted, marginTop: 4 }}>
                           {new Date().toLocaleString("default", { month: "long", year: "numeric" })}
                         </div>
-                        {credits.partial && <div style={{ fontSize: 11, color: C.orange, marginTop: 2 }}>⚠ partial data</div>}
+                        {credits.partial && <div style={{ fontSize: 11, color: C.orange, marginTop: 2 }}>⚠ {t.creditsPartialNote}</div>}
                       </div>
                     </div>
                     {/* Progress bar */}
                     {credits.total_granted > 0 && (
                       <div>
                         <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: C.textDim, marginBottom: 5 }}>
-                          <span>{fmtUsd(credits.total_granted - credits.remaining)} used</span>
+                          <span>{fmtUsd(credits.total_granted - credits.remaining)} {t.creditsUsedLabel}</span>
                           <span>{Math.round(((credits.total_granted - credits.remaining) / credits.total_granted) * 100)}%</span>
                         </div>
                         <div style={{ height: 6, background: C.bgInput, borderRadius: 3, overflow: "hidden" }}>
@@ -845,7 +849,7 @@ export default function App() {
                     {/* External API hint */}
                     <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 12, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
                       <code style={{ fontSize: 11, color: C.textDim, fontFamily: "monospace" }}>{t.creditsApiHint}</code>
-                      <button onClick={() => { setCreditsLoading(true); fetch("/api/credits", { headers: { "Authorization": `Bearer ${adminToken}` } }).then(async r => { if (r.ok) { setCredits(await r.json() as CreditsResp); setCreditsErr(""); } }).catch(() => {}).finally(() => setCreditsLoading(false)); }} disabled={creditsLoading} style={{ background: C.bgInput, border: `1px solid ${C.border}`, borderRadius: 6, padding: "3px 10px", fontSize: 12, cursor: creditsLoading ? "not-allowed" : "pointer", color: C.textMuted, opacity: creditsLoading ? 0.6 : 1 }}>{creditsLoading ? "..." : t.creditsRefresh}</button>
+                      <button onClick={async () => { setCreditsLoading(true); try { const r = await fetch("/api/credits", { headers: { "Authorization": `Bearer ${adminToken}` } }); if (r.ok) { setCredits(await r.json() as CreditsResp); setCreditsErr(""); } else { const e = await r.json().catch(() => ({})) as { error?: string }; setCreditsErr(e.error ?? `HTTP ${r.status}`); } } catch (e) { setCreditsErr(e instanceof Error ? e.message : "Network error"); } finally { setCreditsLoading(false); } }} disabled={creditsLoading} style={{ background: C.bgInput, border: `1px solid ${C.border}`, borderRadius: 6, padding: "3px 10px", fontSize: 12, cursor: creditsLoading ? "not-allowed" : "pointer", color: C.textMuted, opacity: creditsLoading ? 0.6 : 1 }}>{creditsLoading ? "..." : t.creditsRefresh}</button>
                     </div>
                   </div>
                 ) : null}
