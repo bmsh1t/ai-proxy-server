@@ -103,12 +103,19 @@ function makeAbortController(): { controller: AbortController; clear: () => void
 
 function requireAuth(req: Request, res: Response, next: () => void) {
   const proxyKey = getConfig().proxyApiKey;
-  const auth = req.headers.authorization;
-  if (!auth || auth !== `Bearer ${proxyKey}`) {
+  const authHeader = req.headers.authorization;
+  const xApiKey = req.headers["x-api-key"] as string | undefined;
+
+  const fromBearer = authHeader === `Bearer ${proxyKey}`;
+  const fromXApiKey = xApiKey === proxyKey;
+
+  if (!fromBearer && !fromXApiKey) {
     res.status(401).json({ error: { message: "Unauthorized", type: "authentication_error", code: 401 } });
     return;
   }
-  const { allowed, retryAfter } = checkRateLimit(auth);
+
+  const rateLimitKey = authHeader ?? `x-api-key:${xApiKey}`;
+  const { allowed, retryAfter } = checkRateLimit(rateLimitKey);
   if (!allowed) {
     res.setHeader("Retry-After", String(retryAfter ?? 60));
     res.status(429).json({ error: { message: "Rate limit exceeded. Please retry later.", type: "rate_limit_error", code: 429 } });
