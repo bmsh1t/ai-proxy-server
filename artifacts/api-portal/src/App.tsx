@@ -710,7 +710,7 @@ export default function App() {
           <div style={{ width: 32, height: 32, borderRadius: 8, background: `linear-gradient(135deg, ${C.gradientA}, ${C.gradientB})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, flexShrink: 0 }}>⚡</div>
           <div>
             <div style={{ fontWeight: 700, fontSize: 15, color: C.text }}>AI Proxy API</div>
-            <div style={{ fontSize: 11, color: C.textMuted }}>OpenAI · Anthropic · Gemini — reverse proxy</div>
+            <div style={{ fontSize: 11, color: C.textMuted }}>OpenAI · Anthropic · Gemini — reverse proxy · <span style={{ color: C.gradientB, fontWeight: 600 }}>by kilig</span></div>
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
