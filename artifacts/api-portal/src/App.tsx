@@ -307,6 +307,12 @@ export default function App() {
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+          <div style={{
+            fontSize: 11, fontWeight: 700, color: C.gradientB,
+            background: C.purpleDark, border: `1px solid ${C.purple}`,
+            borderRadius: 6, padding: "2px 8px", letterSpacing: "0.06em",
+            fontFamily: "monospace",
+          }}>v2.1</div>
           <StatusDot online={online} C={C} />
           <button
             onClick={() => setDark((d) => !d)}
