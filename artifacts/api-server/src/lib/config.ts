@@ -1,13 +1,17 @@
 import fs from "fs";
 import path from "path";
 import crypto from "crypto";
+import { fileURLToPath } from "url";
 
 export interface AppConfig {
   proxyApiKey: string;
   portalPassword: string;
 }
 
-const CONFIG_PATH = path.resolve(process.cwd(), "config.json");
+const CONFIG_PATH = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "../config.json",
+);
 
 const DEFAULTS: AppConfig = {
   proxyApiKey: process.env.PROXY_API_KEY ?? "981115",

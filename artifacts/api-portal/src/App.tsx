@@ -237,7 +237,6 @@ function LoginPage({ C, onLogin }: { C: Record<string, string>; onLogin: (token:
             </button>
           </form>
         </Card>
-        <div style={{ marginTop: 16, textAlign: "center", fontSize: 12, color: C.textDim }}>默认密码: admin123</div>
       </div>
     </div>
   );
@@ -297,11 +296,13 @@ function ChatTab({ C, proxyApiKey }: { C: Record<string, string>; proxyApiKey: s
       if (!reader) throw new Error("No response body");
 
       let accumulated = "";
+      let sseBuffer = "";
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split("\n");
+        sseBuffer += decoder.decode(value, { stream: true });
+        const lines = sseBuffer.split("\n");
+        sseBuffer = lines.pop() ?? "";
         for (const line of lines) {
           if (!line.startsWith("data: ")) continue;
           const data = line.slice(6).trim();
