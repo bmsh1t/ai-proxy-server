@@ -1,3 +1,5 @@
+import { getConfig } from "./config.js";
+
 export interface CreditsData {
   totalGranted: number;
   remaining: number;
@@ -11,6 +13,7 @@ export interface CreditsResult {
   data?: CreditsData;
   error?: string;
   partial?: boolean;
+  needsKey?: boolean;
 }
 
 interface GrantsResponse {
@@ -23,16 +26,43 @@ interface UsageResponse {
   total_usage?: number;
 }
 
-function getIntegrationConfig(): { baseUrl: string; apiKey: string } {
+function resolveApiKey(): string {
+  // Priority: env var > config.json > integration key
+  const envKey = process.env.OPENAI_DIRECT_KEY?.trim();
+  if (envKey) return envKey;
+
+  const cfgKey = getConfig().openaiDirectKey?.trim();
+  if (cfgKey) return cfgKey;
+
+  // Fall back to integration key (only works in dev, not in production)
+  const intKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY?.trim();
+  if (intKey && intKey !== "_DUMMY_API_KEY_") return intKey;
+
+  return "";
+}
+
+function resolveBaseUrl(apiKey: string): string {
+  // If the key comes from env/config (real OpenAI key), use official API
+  const envKey = process.env.OPENAI_DIRECT_KEY?.trim();
+  const cfgKey = getConfig().openaiDirectKey?.trim();
+  if (envKey || cfgKey) return "https://api.openai.com";
+
+  // Otherwise try integration proxy (dev-only)
   const rawBase = process.env.AI_INTEGRATIONS_OPENAI_BASE_URL ?? "https://api.openai.com/v1";
-  const baseUrl = rawBase.replace(/\/v1\/?$/, "");
-  const apiKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY ?? "";
-  return { baseUrl, apiKey };
+  return rawBase.replace(/\/v1\/?$/, "");
 }
 
 export async function fetchCredits(): Promise<CreditsResult> {
-  const { baseUrl, apiKey } = getIntegrationConfig();
+  const apiKey = resolveApiKey();
+  if (!apiKey) {
+    return {
+      ok: false,
+      needsKey: true,
+      error: "No OpenAI API key configured. Set OPENAI_DIRECT_KEY environment variable, or add your OpenAI API Key in Settings.",
+    };
+  }
 
+  const baseUrl = resolveBaseUrl(apiKey);
   const headers: Record<string, string> = {
     Authorization: `Bearer ${apiKey}`,
     "Content-Type": "application/json",
@@ -77,7 +107,7 @@ export async function fetchCredits(): Promise<CreditsResult> {
   }
 
   if (grantError && usageError) {
-    return { ok: false, error: `Billing API unavailable — grants: ${grantError}; usage: ${usageError}` };
+    return { ok: false, error: `Billing API error — grants: ${grantError}; usage: ${usageError}` };
   }
 
   const totalGranted = grants?.total_granted ?? 0;
@@ -100,7 +130,11 @@ export async function fetchCredits(): Promise<CreditsResult> {
 
 export function buildCreditsJson(result: CreditsResult): Record<string, unknown> {
   if (!result.ok || !result.data) {
-    return { error: result.error ?? "unknown error", partial: false };
+    return {
+      error: result.error ?? "unknown error",
+      needs_key: result.needsKey ?? false,
+      partial: false,
+    };
   }
   const d = result.data;
   return {

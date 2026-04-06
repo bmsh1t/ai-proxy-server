@@ -93,9 +93,19 @@ const T_CN = {
   creditsRefresh: "刷新",
   creditsExpires: "到期",
   creditsApiHint: "外部查询接口: GET /v1/credits (使用 proxyApiKey 鉴权)",
-  creditsUnavailableNote: "余额暂不可用，请稍后重试",
+  creditsUnavailableNote: "余额查询失败，请检查 API Key 是否正确",
   creditsPartialNote: "部分数据不可用",
   creditsUsedLabel: "已用",
+  creditsNeedsKey: "需要配置 OpenAI API Key 才能查询余额。",
+  goToSettings: "前往设置",
+  settingsOAIKeyTitle: "OpenAI API Key（余额查询）",
+  settingsOAIKeyDesc: "填写您的 OpenAI API Key（sk-...），用于查询账户余额及本月用量。此 Key 仅用于计费接口，不影响代理推理请求。",
+  settingsOAIKeyLabel: "OpenAI API Key",
+  settingsOAIKeyPlaceholder: "sk-...",
+  settingsOAIKeyClear: "清除",
+  settingsOAIKeySet: "已配置 ✓",
+  settingsOAIKeyUnset: "未配置",
+  settingsOAIKeyFromEnv: "已通过环境变量配置，无需在此填写",
 };
 
 const T_EN = {
@@ -169,9 +179,19 @@ const T_EN = {
   creditsRefresh: "Refresh",
   creditsExpires: "Expires",
   creditsApiHint: "External API: GET /v1/credits (auth with proxyApiKey)",
-  creditsUnavailableNote: "Credits unavailable, please try again later",
+  creditsUnavailableNote: "Failed to fetch credits. Check your OpenAI API Key.",
   creditsPartialNote: "partial data unavailable",
   creditsUsedLabel: "used",
+  creditsNeedsKey: "An OpenAI API Key is required to query account credits.",
+  goToSettings: "Go to Settings",
+  settingsOAIKeyTitle: "OpenAI API Key (for billing)",
+  settingsOAIKeyDesc: "Enter your OpenAI API Key (sk-...) to query account balance and monthly usage. This key is only used for billing API calls, not for proxied inference requests.",
+  settingsOAIKeyLabel: "OpenAI API Key",
+  settingsOAIKeyPlaceholder: "sk-...",
+  settingsOAIKeyClear: "Clear",
+  settingsOAIKeySet: "Configured ✓",
+  settingsOAIKeyUnset: "Not configured",
+  settingsOAIKeyFromEnv: "Configured via environment variable — no action needed here",
 };
 
 type TType = typeof T_CN;
@@ -312,7 +332,7 @@ function LangToggle({ lang, setLang, C }: { lang: Lang; setLang: (l: Lang) => vo
   );
 }
 
-function LoginPage({ C, t, onLogin }: { C: Record<string, string>; t: TType; onLogin: (token: string, proxyApiKey: string) => void }) {
+function LoginPage({ C, t, onLogin }: { C: Record<string, string>; t: TType; onLogin: (token: string, proxyApiKey: string, oaiSet?: boolean, oaiFromEnv?: boolean) => void }) {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -323,8 +343,8 @@ function LoginPage({ C, t, onLogin }: { C: Record<string, string>; t: TType; onL
     try {
       const res = await fetch("/api/config/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ password }) });
       if (!res.ok) { setError(t.loginErrorPwd); setLoading(false); return; }
-      const data = await res.json() as { token: string; proxyApiKey: string };
-      onLogin(data.token, data.proxyApiKey);
+      const data = await res.json() as { token: string; proxyApiKey: string; openaiDirectKeySet?: boolean; openaiDirectKeyFromEnv?: boolean };
+      onLogin(data.token, data.proxyApiKey, data.openaiDirectKeySet, data.openaiDirectKeyFromEnv);
     } catch { setError(t.loginErrorNet); setLoading(false); }
   };
 
@@ -510,14 +530,21 @@ function ChatTab({ C, t, proxyApiKey, adminToken, onKeyRefresh, onForceRelogin, 
   );
 }
 
-function SettingsTab({ C, t, adminToken, proxyApiKey, onProxyKeyChange }: { C: Record<string, string>; t: TType; adminToken: string; proxyApiKey: string; onProxyKeyChange: (k: string) => void }) {
+function SettingsTab({ C, t, adminToken, proxyApiKey, openaiDirectKeySet, openaiDirectKeyFromEnv, onProxyKeyChange, onOAIKeyChange }: {
+  C: Record<string, string>; t: TType; adminToken: string; proxyApiKey: string;
+  openaiDirectKeySet: boolean; openaiDirectKeyFromEnv: boolean;
+  onProxyKeyChange: (k: string) => void; onOAIKeyChange: (set: boolean) => void;
+}) {
   const [newKey, setNewKey] = useState(proxyApiKey);
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [oaiKey, setOaiKey] = useState("");
   const [savingKey, setSavingKey] = useState(false);
   const [savingPwd, setSavingPwd] = useState(false);
+  const [savingOAI, setSavingOAI] = useState(false);
   const [keyMsg, setKeyMsg] = useState("");
   const [pwdMsg, setPwdMsg] = useState("");
+  const [oaiMsg, setOaiMsg] = useState("");
 
   useEffect(() => { setNewKey(proxyApiKey); }, [proxyApiKey]);
 
@@ -544,6 +571,21 @@ function SettingsTab({ C, t, adminToken, proxyApiKey, onProxyKeyChange }: { C: R
     setSavingPwd(false);
   };
 
+  const saveOAIKey = async (keyValue: string) => {
+    setSavingOAI(true); setOaiMsg("");
+    try {
+      const res = await fetch("/api/config/settings", { method: "POST", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${adminToken}` }, body: JSON.stringify({ openaiDirectKey: keyValue }) });
+      if (res.ok) {
+        const d = await res.json() as { openaiDirectKeySet: boolean };
+        onOAIKeyChange(d.openaiDirectKeySet);
+        setOaiKey("");
+        setOaiMsg(keyValue ? t.savedOk : "✓ Cleared");
+        setTimeout(() => setOaiMsg(""), 3000);
+      } else setOaiMsg(t.saveFail);
+    } catch { setOaiMsg(t.netError); }
+    setSavingOAI(false);
+  };
+
   const msgStyle = (msg: string): React.CSSProperties => ({ fontSize: 13, marginTop: 8, color: msg.startsWith("✓") ? C.green : C.red, fontWeight: 600 });
   const inp = (extra?: React.CSSProperties): React.CSSProperties => ({ width: "100%", background: C.bgInput, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 14px", fontSize: 14, color: C.text, outline: "none", boxSizing: "border-box" as const, ...extra });
   const lbl: React.CSSProperties = { display: "block", fontSize: 12, fontWeight: 700, color: C.textDim, marginBottom: 8, textTransform: "uppercase" as const, letterSpacing: "0.07em" };
@@ -561,6 +603,38 @@ function SettingsTab({ C, t, adminToken, proxyApiKey, onProxyKeyChange }: { C: R
             {savingKey ? t.saving : t.saveKeyBtn}
           </button>
           {keyMsg && <div style={msgStyle(keyMsg)}>{keyMsg}</div>}
+        </Card>
+      </Section>
+
+      <Section title={t.settingsOAIKeyTitle} C={C}>
+        <Card C={C}>
+          <p style={{ fontSize: 13, color: C.textMuted, marginBottom: 16, marginTop: 0 }}>{t.settingsOAIKeyDesc}</p>
+          {openaiDirectKeyFromEnv ? (
+            <div style={{ fontSize: 13, color: C.green, background: C.emeraldDark, border: `1px solid ${C.green}`, borderRadius: 8, padding: "10px 14px" }}>{t.settingsOAIKeyFromEnv}</div>
+          ) : (
+            <>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: openaiDirectKeySet ? C.green : C.textDim, background: openaiDirectKeySet ? C.emeraldDark : C.grayDark, border: `1px solid ${openaiDirectKeySet ? C.green : C.border}`, borderRadius: 6, padding: "3px 10px" }}>
+                  {openaiDirectKeySet ? t.settingsOAIKeySet : t.settingsOAIKeyUnset}
+                </span>
+              </div>
+              <div style={{ marginBottom: 14 }}>
+                <label style={lbl}>{t.settingsOAIKeyLabel}</label>
+                <input type="password" value={oaiKey} onChange={(e) => setOaiKey(e.target.value)} placeholder={t.settingsOAIKeyPlaceholder} style={{ ...inp(), fontFamily: "monospace" }} />
+              </div>
+              <div style={{ display: "flex", gap: 10 }}>
+                <button onClick={() => saveOAIKey(oaiKey)} disabled={savingOAI || !oaiKey.trim()} style={{ background: `linear-gradient(135deg, ${C.gradientA}, ${C.gradientB})`, border: "none", borderRadius: 8, padding: "9px 20px", fontSize: 13, fontWeight: 700, color: "#fff", cursor: savingOAI || !oaiKey.trim() ? "not-allowed" : "pointer", opacity: savingOAI || !oaiKey.trim() ? 0.6 : 1 }}>
+                  {savingOAI ? t.saving : t.saveKeyBtn}
+                </button>
+                {openaiDirectKeySet && (
+                  <button onClick={() => saveOAIKey("")} disabled={savingOAI} style={{ background: C.bgInput, border: `1px solid ${C.border}`, borderRadius: 8, padding: "9px 16px", fontSize: 13, color: C.red, cursor: savingOAI ? "not-allowed" : "pointer", fontWeight: 600 }}>
+                    {t.settingsOAIKeyClear}
+                  </button>
+                )}
+              </div>
+              {oaiMsg && <div style={msgStyle(oaiMsg)}>{oaiMsg}</div>}
+            </>
+          )}
         </Card>
       </Section>
 
@@ -688,6 +762,9 @@ export default function App() {
   const [credits, setCredits] = useState<CreditsResp | null>(null);
   const [creditsLoading, setCreditsLoading] = useState(false);
   const [creditsErr, setCreditsErr] = useState("");
+  const [creditsNeedsKey, setCreditsNeedsKey] = useState(false);
+  const [openaiDirectKeySet, setOpenaiDirectKeySet] = useState(false);
+  const [openaiDirectKeyFromEnv, setOpenaiDirectKeyFromEnv] = useState(false);
   const C = dark ? DARK : LIGHT;
   const t = lang === "cn" ? T_CN : T_EN;
   const origin = window.location.origin;
@@ -701,14 +778,25 @@ export default function App() {
     if (!stored) { setAuthChecked(true); return; }
     fetch("/api/config/settings", { headers: { "Authorization": `Bearer ${stored}` } })
       .then(async (r) => {
-        if (r.ok) { const d = await r.json() as { proxyApiKey: string }; setAdminToken(stored); setProxyApiKey(d.proxyApiKey); setAuthed(true); }
-        else localStorage.removeItem("portalToken");
+        if (r.ok) {
+          const d = await r.json() as { proxyApiKey: string; openaiDirectKeySet?: boolean; openaiDirectKeyFromEnv?: boolean };
+          setAdminToken(stored); setProxyApiKey(d.proxyApiKey);
+          setOpenaiDirectKeySet(d.openaiDirectKeySet ?? false);
+          setOpenaiDirectKeyFromEnv(d.openaiDirectKeyFromEnv ?? false);
+          setAuthed(true);
+        } else localStorage.removeItem("portalToken");
         setAuthChecked(true);
       })
       .catch(() => { localStorage.removeItem("portalToken"); setAuthChecked(true); });
   }, []);
 
-  const handleLogin = (token: string, key: string) => { localStorage.setItem("portalToken", token); setAdminToken(token); setProxyApiKey(key); setAuthed(true); };
+  const handleLogin = (token: string, key: string, oaiSet?: boolean, oaiFromEnv?: boolean) => {
+    localStorage.setItem("portalToken", token);
+    setAdminToken(token); setProxyApiKey(key);
+    setOpenaiDirectKeySet(oaiSet ?? false);
+    setOpenaiDirectKeyFromEnv(oaiFromEnv ?? false);
+    setAuthed(true);
+  };
   const handleLogout = async () => { await fetch("/api/config/logout", { method: "POST", headers: { "Authorization": `Bearer ${adminToken}` } }).catch(() => {}); localStorage.removeItem("portalToken"); setAdminToken(""); setProxyApiKey(""); setAuthed(false); };
   const handleForceRelogin = () => { localStorage.removeItem("portalToken"); setAdminToken(""); setProxyApiKey(""); setAuthed(false); };
 
@@ -718,15 +806,18 @@ export default function App() {
       setCreditsLoading(true);
       try {
         const res = await fetch("/api/credits", { headers: { "Authorization": `Bearer ${adminToken}` } });
-        if (res.ok) { setCredits(await res.json() as CreditsResp); setCreditsErr(""); }
-        else { const e = await res.json().catch(() => ({})) as { error?: string }; setCreditsErr(e.error ?? `HTTP ${res.status}`); }
-      } catch (e) { setCreditsErr(e instanceof Error ? e.message : "Network error"); }
+        const data = await res.json() as CreditsResp & { needs_key?: boolean; error?: string };
+        if (res.ok) {
+          if (data.needs_key) { setCreditsNeedsKey(true); setCredits(null); setCreditsErr(""); }
+          else { setCreditsNeedsKey(false); setCredits(data); setCreditsErr(""); }
+        } else { setCreditsErr(data.error ?? `HTTP ${res.status}`); setCreditsNeedsKey(false); }
+      } catch (e) { setCreditsErr(e instanceof Error ? e.message : "Network error"); setCreditsNeedsKey(false); }
       finally { setCreditsLoading(false); }
     };
     load();
     const iv = setInterval(load, 60_000);
     return () => clearInterval(iv);
-  }, [authed, adminToken]);
+  }, [authed, adminToken, openaiDirectKeySet]);
 
   if (!authChecked) {
     return <div style={{ minHeight: "100vh", background: C.bg, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Inter', system-ui, sans-serif" }}><div style={{ color: C.textMuted, fontSize: 14 }}>{t.loading}</div></div>;
@@ -798,7 +889,7 @@ export default function App() {
             {/* ── Credits Card ── */}
             <Section title={t.creditsTitle} C={C}>
               <Card C={C}>
-                {creditsLoading && !credits ? (
+                {creditsLoading && !credits && !creditsNeedsKey ? (
                   <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                       {[0, 1].map((i) => (
@@ -810,6 +901,11 @@ export default function App() {
                       ))}
                     </div>
                     <div style={{ height: 6, background: C.bgInput, borderRadius: 3 }} />
+                  </div>
+                ) : creditsNeedsKey ? (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                    <div style={{ fontSize: 13, color: C.textMuted }}>{t.creditsNeedsKey}</div>
+                    <button onClick={() => setTab("settings")} style={{ alignSelf: "flex-start", background: `linear-gradient(135deg, ${C.gradientA}, ${C.gradientB})`, border: "none", borderRadius: 8, padding: "8px 18px", fontSize: 13, fontWeight: 700, color: "#fff", cursor: "pointer" }}>{t.goToSettings}</button>
                   </div>
                 ) : creditsErr && !credits ? (
                   <div style={{ color: C.textDim, fontSize: 13 }}>{t.creditsUnavailableNote}</div>
@@ -849,7 +945,7 @@ export default function App() {
                     {/* External API hint */}
                     <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 12, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
                       <code style={{ fontSize: 11, color: C.textDim, fontFamily: "monospace" }}>{t.creditsApiHint}</code>
-                      <button onClick={async () => { setCreditsLoading(true); try { const r = await fetch("/api/credits", { headers: { "Authorization": `Bearer ${adminToken}` } }); if (r.ok) { setCredits(await r.json() as CreditsResp); setCreditsErr(""); } else { const e = await r.json().catch(() => ({})) as { error?: string }; setCreditsErr(e.error ?? `HTTP ${r.status}`); } } catch (e) { setCreditsErr(e instanceof Error ? e.message : "Network error"); } finally { setCreditsLoading(false); } }} disabled={creditsLoading} style={{ background: C.bgInput, border: `1px solid ${C.border}`, borderRadius: 6, padding: "3px 10px", fontSize: 12, cursor: creditsLoading ? "not-allowed" : "pointer", color: C.textMuted, opacity: creditsLoading ? 0.6 : 1 }}>{creditsLoading ? "..." : t.creditsRefresh}</button>
+                      <button onClick={async () => { setCreditsLoading(true); try { const r = await fetch("/api/credits", { headers: { "Authorization": `Bearer ${adminToken}` } }); const d = await r.json() as CreditsResp & { needs_key?: boolean; error?: string }; if (r.ok) { if (d.needs_key) { setCreditsNeedsKey(true); setCredits(null); setCreditsErr(""); } else { setCreditsNeedsKey(false); setCredits(d); setCreditsErr(""); } } else { setCreditsErr(d.error ?? `HTTP ${r.status}`); } } catch (e) { setCreditsErr(e instanceof Error ? e.message : "Network error"); } finally { setCreditsLoading(false); } }} disabled={creditsLoading} style={{ background: C.bgInput, border: `1px solid ${C.border}`, borderRadius: 6, padding: "3px 10px", fontSize: 12, cursor: creditsLoading ? "not-allowed" : "pointer", color: C.textMuted, opacity: creditsLoading ? 0.6 : 1 }}>{creditsLoading ? "..." : t.creditsRefresh}</button>
                     </div>
                   </div>
                 ) : null}
@@ -953,7 +1049,7 @@ export default function App() {
         )}
 
         {tab === "settings" && (
-          <SettingsTab C={C} t={t} adminToken={adminToken} proxyApiKey={proxyApiKey} onProxyKeyChange={setProxyApiKey} />
+          <SettingsTab C={C} t={t} adminToken={adminToken} proxyApiKey={proxyApiKey} openaiDirectKeySet={openaiDirectKeySet} openaiDirectKeyFromEnv={openaiDirectKeyFromEnv} onProxyKeyChange={setProxyApiKey} onOAIKeyChange={setOpenaiDirectKeySet} />
         )}
           </div>
         </div>
