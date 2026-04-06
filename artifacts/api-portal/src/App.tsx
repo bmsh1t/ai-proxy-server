@@ -580,14 +580,17 @@ export default function App() {
   const curlExample = `curl ${origin}/v1/chat/completions \\\n  -H "Content-Type: application/json" \\\n  -H "Authorization: Bearer ${proxyApiKey}" \\\n  -d '{\n    "model": "gemini-2.5-flash",\n    "messages": [{"role": "user", "content": "Hello!"}],\n    "stream": false\n  }'`;
 
   const TABS = [
-    { key: "dashboard" as const, label: t.tabDashboard },
-    { key: "chat" as const, label: t.tabChat },
-    { key: "settings" as const, label: t.tabSettings },
+    { key: "dashboard" as const, label: t.tabDashboard, icon: "▣" },
+    { key: "chat" as const, label: t.tabChat, icon: "💬" },
+    { key: "settings" as const, label: t.tabSettings, icon: "⚙" },
   ];
 
+  const HEADER_H = 57;
+
   return (
-    <div style={{ minHeight: "100vh", background: C.bg, color: C.text, fontFamily: "'Inter', system-ui, sans-serif", lineHeight: 1.6, transition: "background 0.2s, color 0.2s" }}>
-      <div style={{ borderBottom: `1px solid ${C.border}`, padding: "12px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", background: C.bgCard, position: "sticky", top: 0, zIndex: 10, transition: "background 0.2s, border-color 0.2s" }}>
+    <div style={{ height: "100vh", display: "flex", flexDirection: "column", background: C.bg, color: C.text, fontFamily: "'Inter', system-ui, sans-serif", lineHeight: 1.6, transition: "background 0.2s, color 0.2s" }}>
+      {/* ── Top header ── */}
+      <div style={{ height: HEADER_H, flexShrink: 0, borderBottom: `1px solid ${C.border}`, padding: "0 20px", display: "flex", alignItems: "center", justifyContent: "space-between", background: C.bgCard, zIndex: 10, transition: "background 0.2s, border-color 0.2s" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div style={{ width: 32, height: 32, borderRadius: 8, background: `linear-gradient(135deg, ${C.gradientA}, ${C.gradientB})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, flexShrink: 0 }}>⚡</div>
           <div>
@@ -604,15 +607,24 @@ export default function App() {
         </div>
       </div>
 
-      <div style={{ borderBottom: `1px solid ${C.border}`, background: C.bgCard, padding: "0 20px", display: "flex", gap: 2 }}>
-        {TABS.map((tb) => (
-          <button key={tb.key} onClick={() => setTab(tb.key)} style={{ background: "transparent", border: "none", borderBottom: tab === tb.key ? `2px solid ${C.gradientA}` : "2px solid transparent", padding: "11px 14px", fontSize: 14, fontWeight: tab === tb.key ? 700 : 500, color: tab === tb.key ? C.text : C.textMuted, cursor: "pointer", transition: "all 0.15s" }}>
-            {tb.label}
-          </button>
-        ))}
-      </div>
+      {/* ── Body: sidebar + content ── */}
+      <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+        {/* Left sidebar */}
+        <div style={{ width: 180, flexShrink: 0, borderRight: `1px solid ${C.border}`, background: C.bgCard, display: "flex", flexDirection: "column", padding: "16px 10px", gap: 4, overflowY: "auto", transition: "background 0.2s" }}>
+          {TABS.map((tb) => {
+            const active = tab === tb.key;
+            return (
+              <button key={tb.key} onClick={() => setTab(tb.key)} style={{ display: "flex", alignItems: "center", gap: 9, width: "100%", textAlign: "left", background: active ? (dark ? "hsl(222,40%,20%)" : C.bgInput) : "transparent", border: `1px solid ${active ? C.border : "transparent"}`, borderLeft: active ? `3px solid ${C.gradientA}` : "3px solid transparent", borderRadius: 8, padding: "9px 11px", cursor: "pointer", color: active ? C.text : C.textMuted, fontSize: 14, fontWeight: active ? 700 : 400, transition: "all 0.15s" }}>
+                <span style={{ fontSize: 15, lineHeight: 1, flexShrink: 0 }}>{tb.icon}</span>
+                {tb.label}
+              </button>
+            );
+          })}
+        </div>
 
-      <div style={{ maxWidth: tab === "chat" ? 1100 : 860, margin: "0 auto", padding: tab === "chat" ? "20px 16px 16px" : "28px 20px 60px" }}>
+        {/* Main content */}
+        <div style={{ flex: 1, overflowY: "auto" }}>
+          <div style={{ maxWidth: tab === "chat" ? 9999 : 860, margin: "0 auto", padding: tab === "chat" ? "20px 20px 16px" : "28px 28px 60px" }}>
         {tab === "dashboard" && (
           <>
             <Section title={t.connDetails} C={C}>
@@ -710,6 +722,8 @@ export default function App() {
         {tab === "settings" && (
           <SettingsTab C={C} t={t} adminToken={adminToken} proxyApiKey={proxyApiKey} onProxyKeyChange={setProxyApiKey} />
         )}
+          </div>
+        </div>
       </div>
     </div>
   );
