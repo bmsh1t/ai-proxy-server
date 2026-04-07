@@ -203,22 +203,22 @@ type ModelMeta = { id: string; note?: string; ctx: string; caps: Cap[]; route: s
 const OPENAI_MODELS: ModelMeta[] = [
   // ── GPT-5.x series ──
   { id: "gpt-5.4",        note: "Latest",       ctx: "1M",   caps: ["stream","tools","vision","json","reasoning"], route: "/v1/chat/completions · /v1/responses" },
-  { id: "gpt-5.3-codex",  note: "Code",         ctx: "1M",   caps: ["stream","tools","json","reasoning"],          route: "/v1/chat/completions · /v1/responses" },
+  { id: "gpt-5.3-codex",  note: "Code",         ctx: "1M",   caps: ["stream","tools","vision","json","reasoning"], route: "/v1/chat/completions · /v1/responses" },
   { id: "gpt-5.2",                               ctx: "1M",   caps: ["stream","tools","vision","json","reasoning"], route: "/v1/chat/completions · /v1/responses" },
-  { id: "gpt-5.2-codex",  note: "Code",         ctx: "1M",   caps: ["stream","tools","json","reasoning"],          route: "/v1/chat/completions · /v1/responses" },
+  { id: "gpt-5.2-codex",  note: "Code",         ctx: "1M",   caps: ["stream","tools","vision","json","reasoning"], route: "/v1/chat/completions · /v1/responses" },
   { id: "gpt-5.1",                               ctx: "1M",   caps: ["stream","tools","vision","json","reasoning"], route: "/v1/chat/completions · /v1/responses" },
   { id: "gpt-5",          note: "Most capable", ctx: "1M",   caps: ["stream","tools","vision","json","reasoning"], route: "/v1/chat/completions · /v1/responses" },
   { id: "gpt-5-mini",                            ctx: "1M",   caps: ["stream","tools","vision","json","reasoning"], route: "/v1/chat/completions · /v1/responses" },
-  { id: "gpt-5-nano",     note: "Fastest",      ctx: "1M",   caps: ["stream","tools","json","reasoning"],          route: "/v1/chat/completions · /v1/responses" },
+  { id: "gpt-5-nano",     note: "Fastest",      ctx: "1M",   caps: ["stream","tools","vision","json","reasoning"], route: "/v1/chat/completions · /v1/responses" },
   // ── GPT-4.x series ──
   { id: "gpt-4.1",        note: "Recommended",  ctx: "1M",   caps: ["stream","tools","vision","json"], route: "/v1/chat/completions" },
   { id: "gpt-4.1-mini",                          ctx: "1M",   caps: ["stream","tools","vision","json"], route: "/v1/chat/completions" },
-  { id: "gpt-4.1-nano",   note: "Fast",         ctx: "1M",   caps: ["stream","tools","json"],          route: "/v1/chat/completions" },
+  { id: "gpt-4.1-nano",   note: "Fast",         ctx: "1M",   caps: ["stream","tools","vision","json"], route: "/v1/chat/completions" },
   { id: "gpt-4o",                                ctx: "128K", caps: ["stream","tools","vision","json"], route: "/v1/chat/completions" },
   { id: "gpt-4o-mini",                           ctx: "128K", caps: ["stream","tools","vision","json"], route: "/v1/chat/completions" },
   // ── Reasoning series ──
-  { id: "o4-mini",        note: "Reasoning",    ctx: "200K", caps: ["stream","tools","reasoning"],     route: "/v1/chat/completions" },
-  { id: "o3",             note: "Reasoning",    ctx: "200K", caps: ["stream","reasoning"],             route: "/v1/chat/completions" },
+  { id: "o4-mini",        note: "Reasoning",    ctx: "200K", caps: ["stream","tools","vision","reasoning"],     route: "/v1/chat/completions" },
+  { id: "o3",             note: "Reasoning",    ctx: "200K", caps: ["stream","vision","reasoning"],             route: "/v1/chat/completions" },
   { id: "o3-mini",        note: "Reasoning",    ctx: "200K", caps: ["stream","reasoning"],             route: "/v1/chat/completions" },
 ];
 const ANTHROPIC_MODELS: ModelMeta[] = [
@@ -227,7 +227,7 @@ const ANTHROPIC_MODELS: ModelMeta[] = [
   { id: "claude-opus-4-1",                          ctx: "200K", caps: ["stream","tools","vision","json","reasoning"], route: "/v1/chat/completions · /v1/messages" },
   { id: "claude-sonnet-4-6", note: "Recommended",  ctx: "200K", caps: ["stream","tools","vision","json","reasoning"], route: "/v1/chat/completions · /v1/messages" },
   { id: "claude-sonnet-4-5",                        ctx: "200K", caps: ["stream","tools","vision","json","reasoning"], route: "/v1/chat/completions · /v1/messages" },
-  { id: "claude-haiku-4-5",  note: "Fastest",      ctx: "200K", caps: ["stream","tools","json"],          route: "/v1/chat/completions · /v1/messages" },
+  { id: "claude-haiku-4-5",  note: "Fastest",      ctx: "200K", caps: ["stream","tools","vision","json"], route: "/v1/chat/completions · /v1/messages" },
 ];
 const GEMINI_MODELS: ModelMeta[] = [
   { id: "gemini-3.1-pro-preview",                       ctx: "2M",  caps: ["stream","tools","vision","reasoning"],        route: "/v1/chat/completions · /v1/messages" },
@@ -370,7 +370,7 @@ function LoginPage({ C, t, onLogin }: { C: Record<string, string>; t: TType; onL
         </Card>
         <div style={{ marginTop: 16, display: "flex", justifyContent: "center" }}>
           <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 12px", borderRadius: 999, border: `1px solid ${C.purple}`, background: C.bgCard, color: C.textMuted, fontSize: 12, fontWeight: 600, boxShadow: `0 8px 24px ${C.shadow}` }}>
-            <span style={{ color: C.gradientB, fontFamily: "monospace", fontWeight: 700, letterSpacing: "0.06em" }}>v4.0</span>
+            <span style={{ color: C.gradientB, fontFamily: "monospace", fontWeight: 700, letterSpacing: "0.06em" }}>v4.1</span>
             <span>AI Proxy Portal</span>
           </div>
         </div>
@@ -833,7 +833,7 @@ export default function App() {
     return (
       <div>
         <div style={{ position: "absolute", top: 16, right: 16, display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: C.gradientB, background: C.purpleDark, border: `1px solid ${C.purple}`, borderRadius: 6, padding: "2px 7px", letterSpacing: "0.06em", fontFamily: "monospace" }}>v4.0</div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: C.gradientB, background: C.purpleDark, border: `1px solid ${C.purple}`, borderRadius: 6, padding: "2px 7px", letterSpacing: "0.06em", fontFamily: "monospace" }}>v4.1</div>
           <LangToggle lang={lang} setLang={handleSetLang} C={C} />
         </div>
         <LoginPage C={C} t={t} onLogin={handleLogin} />
@@ -867,7 +867,7 @@ export default function App() {
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: C.gradientB, background: C.purpleDark, border: `1px solid ${C.purple}`, borderRadius: 6, padding: "2px 7px", letterSpacing: "0.06em", fontFamily: "monospace" }}>v4.0</div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: C.gradientB, background: C.purpleDark, border: `1px solid ${C.purple}`, borderRadius: 6, padding: "2px 7px", letterSpacing: "0.06em", fontFamily: "monospace" }}>v4.1</div>
           <StatusDot online={online} C={C} t={t} />
           <LangToggle lang={lang} setLang={handleSetLang} C={C} />
           <button onClick={() => setDark((d) => !d)} style={{ background: C.bgInput, border: `1px solid ${C.border}`, borderRadius: 8, padding: "5px 10px", fontSize: 17, cursor: "pointer", color: C.text, lineHeight: 1 }}>{dark ? "☀️" : "🌙"}</button>
