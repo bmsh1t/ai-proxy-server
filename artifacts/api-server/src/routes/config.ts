@@ -1,6 +1,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { getConfig, updateConfig, createAdminToken, validateAdminToken, revokeAdminToken } from "../lib/config.js";
 import { fetchCredits, buildCreditsJson } from "../lib/credits.js";
+import { syncAllModels, getSyncCache } from "../lib/model-sync.js";
 
 const router: IRouter = Router();
 
@@ -68,6 +69,57 @@ router.post("/config/settings", (req: Request, res: Response) => {
     proxyApiKey: cfg.proxyApiKey,
     openaiDirectKeySet: envKeySet || !!(cfg.openaiDirectKey?.trim()),
     openaiDirectKeyFromEnv: envKeySet,
+  });
+});
+
+router.post("/sync-models", async (req: Request, res: Response) => {
+  const auth = req.headers.authorization;
+  if (!auth?.startsWith("Bearer ") || !validateAdminToken(auth.slice(7))) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+  try {
+    const cache = await syncAllModels();
+    res.json({
+      ok: true,
+      syncedAt: cache.syncedAt,
+      results: cache.results.map((r) => ({
+        provider: r.provider,
+        ok: r.ok,
+        source: r.source,
+        count: r.models.length,
+        error: r.error,
+        models: r.models,
+      })),
+    });
+  } catch (e: unknown) {
+    res.status(500).json({ ok: false, error: String(e) });
+  }
+});
+
+router.get("/sync-models", (req: Request, res: Response) => {
+  const auth = req.headers.authorization;
+  if (!auth?.startsWith("Bearer ") || !validateAdminToken(auth.slice(7))) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+  const cache = getSyncCache();
+  if (!cache) {
+    res.json({ ok: false, synced: false });
+    return;
+  }
+  res.json({
+    ok: true,
+    synced: true,
+    syncedAt: cache.syncedAt,
+    results: cache.results.map((r) => ({
+      provider: r.provider,
+      ok: r.ok,
+      source: r.source,
+      count: r.models.length,
+      error: r.error,
+      models: r.models,
+    })),
   });
 });
 

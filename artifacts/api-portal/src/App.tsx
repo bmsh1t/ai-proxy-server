@@ -695,81 +695,300 @@ const CAP_LABEL: Record<Cap, { label: string; color: string }> = {
   json:      { label: "JSON Mode",  color: "hsl(210,80%,60%)" },
 };
 
-function ModelsTab({ C, t, onGoChat }: { C: Record<string, string>; t: TType; onGoChat: (modelId: string) => void }) {
-  const groups: { provider: string; color: string; bg: string; models: ModelMeta[] }[] = [
+type SyncedModelEntry = { id: string; provider: string; contextLength?: number; ownedBy?: string; name?: string };
+type SyncProviderResult = { provider: string; ok: boolean; source?: "live" | "static"; count: number; error?: string; models: SyncedModelEntry[] };
+type SyncData = { ok: boolean; syncedAt: number; results: SyncProviderResult[] };
+
+function fmtCtx(n?: number): string {
+  if (!n) return "—";
+  if (n >= 1_000_000) return (n / 1_000_000).toFixed(n % 1_000_000 === 0 ? 0 : 1) + "M";
+  if (n >= 1_000) return Math.round(n / 1_000) + "K";
+  return String(n);
+}
+
+function providerColorOf(C: Record<string, string>, p: string): string {
+  if (p === "openai") return C.blue;
+  if (p === "anthropic") return C.orange;
+  if (p === "gemini") return C.emerald;
+  return C.purple;
+}
+function providerBgOf(C: Record<string, string>, p: string): string {
+  if (p === "openai") return C.blueDark;
+  if (p === "anthropic") return C.orangeDark;
+  if (p === "gemini") return C.emeraldDark;
+  return C.purpleDark;
+}
+
+function ModelsTab({ C, t, onGoChat, adminToken }: { C: Record<string, string>; t: TType; onGoChat: (modelId: string) => void; adminToken: string }) {
+  const staticGroups: { provider: string; color: string; bg: string; models: ModelMeta[] }[] = [
     { provider: "OpenAI",     color: C.blue,     bg: C.blueDark,     models: OPENAI_MODELS },
     { provider: "Anthropic",  color: C.orange,   bg: C.orangeDark,   models: ANTHROPIC_MODELS },
     { provider: "Gemini",     color: C.emerald,  bg: C.emeraldDark,  models: GEMINI_MODELS },
     { provider: "OpenRouter", color: C.purple,   bg: C.purpleDark,   models: OPENROUTER_MODELS },
   ];
-  const total = ALL_MODELS.length;
+
+  const [syncing, setSyncing] = useState(false);
+  const [syncData, setSyncData] = useState<SyncData | null>(null);
+  const [syncError, setSyncError] = useState("");
+  const [search, setSearch] = useState("");
+  const [activeView, setActiveView] = useState<"static" | "live">("static");
+
+  const handleSync = async () => {
+    setSyncing(true);
+    setSyncError("");
+    try {
+      const r = await fetch("/api/sync-models", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${adminToken}`, "Content-Type": "application/json" },
+      });
+      const d = await r.json() as SyncData;
+      if (!d.ok) throw new Error("Sync failed");
+      setSyncData(d);
+      setActiveView("live");
+    } catch (e: unknown) {
+      setSyncError(String(e));
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const allLiveModels: SyncedModelEntry[] = syncData?.results.flatMap((r) => r.models) ?? [];
+  const filteredLive = search.trim()
+    ? allLiveModels.filter((m) => m.id.toLowerCase().includes(search.toLowerCase()) || (m.name ?? "").toLowerCase().includes(search.toLowerCase()))
+    : allLiveModels;
+
+  const liveByProvider = syncData?.results ?? [];
+
+  const orBySubprovider: Record<string, SyncedModelEntry[]> = {};
+  const orResult = liveByProvider.find((r) => r.provider === "openrouter");
+  (orResult?.models ?? []).forEach((m) => {
+    const sub = (m.ownedBy ?? m.id.split("/")[0]) || "other";
+    (orBySubprovider[sub] = orBySubprovider[sub] ?? []).push(m);
+  });
+  const orSubProviders = Object.entries(orBySubprovider).sort((a, b) => b[1].length - a[1].length);
 
   return (
     <div>
-      {/* Stats bar */}
-      <div style={{ display: "flex", gap: 12, marginBottom: 28, flexWrap: "wrap" }}>
-        {[
-          { label: t.tabModels,   value: `${total}`,                    color: C.text },
-          { label: "OpenAI",      value: `${OPENAI_MODELS.length}`,      color: C.blue },
-          { label: "Anthropic",   value: `${ANTHROPIC_MODELS.length}`,   color: C.orange },
-          { label: "Gemini",      value: `${GEMINI_MODELS.length}`,      color: C.emerald },
-          { label: "OpenRouter",  value: `${OPENROUTER_MODELS.length}`,  color: C.purple },
-        ].map((s) => (
-          <div key={s.label} style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 10, padding: "12px 20px", display: "flex", flexDirection: "column", gap: 4, minWidth: 90 }}>
-            <div style={{ fontSize: 22, fontWeight: 800, color: s.color, fontFamily: "monospace" }}>{s.value}</div>
-            <div style={{ fontSize: 12, color: C.textMuted, fontWeight: 600 }}>{s.label}</div>
-          </div>
-        ))}
+      {/* ── Sync toolbar ── */}
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
+        <button
+          onClick={handleSync}
+          disabled={syncing}
+          style={{
+            background: syncing ? C.bgInput : `linear-gradient(135deg, ${C.gradientA}, ${C.gradientB})`,
+            border: "none", borderRadius: 8, padding: "8px 18px", fontSize: 13, fontWeight: 700,
+            color: syncing ? C.textMuted : "#fff", cursor: syncing ? "not-allowed" : "pointer",
+            display: "flex", alignItems: "center", gap: 7, transition: "all 0.15s",
+          }}
+        >
+          {syncing ? "⟳ 同步中…" : "⟳ 一键同步所有模型"}
+        </button>
+        {syncData && (
+          <>
+            <div style={{ display: "flex", gap: 4 }}>
+              {(["static", "live"] as const).map((v) => (
+                <button key={v} onClick={() => setActiveView(v)} style={{
+                  background: activeView === v ? C.bgInput : "transparent",
+                  border: `1px solid ${activeView === v ? C.border : "transparent"}`,
+                  borderRadius: 6, padding: "4px 12px", fontSize: 12, fontWeight: 600,
+                  color: activeView === v ? C.text : C.textMuted, cursor: "pointer",
+                }}>
+                  {v === "static" ? `精选 (${ALL_MODELS.length})` : `实时 (${allLiveModels.length})`}
+                </button>
+              ))}
+            </div>
+            <span style={{ fontSize: 12, color: C.textDim }}>
+              同步于 {new Date(syncData.syncedAt).toLocaleTimeString()}
+            </span>
+          </>
+        )}
+        {syncError && <span style={{ fontSize: 12, color: C.red }}>{syncError}</span>}
       </div>
 
-      {/* Provider sections */}
-      {groups.map(({ provider, color, bg, models }) => (
-        <div key={provider} style={{ marginBottom: 32 }}>
-          {/* Provider header */}
-          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
-            <div style={{ width: 4, height: 22, borderRadius: 2, background: color, flexShrink: 0 }} />
-            <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: C.text }}>{provider}</h2>
-            <span style={{ background: bg, color, borderRadius: 20, padding: "2px 10px", fontSize: 12, fontWeight: 700 }}>{models.length} models</span>
-          </div>
-
-          {/* Model cards grid */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 12 }}>
-            {models.map((m) => (
-              <div key={m.id} style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12, padding: "16px 18px", display: "flex", flexDirection: "column", gap: 10, transition: "border-color 0.15s" }}
-                onMouseEnter={(e) => (e.currentTarget.style.borderColor = color)}
-                onMouseLeave={(e) => (e.currentTarget.style.borderColor = C.border)}>
-                {/* Model ID + note */}
-                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
-                  <code style={{ fontSize: 13, fontFamily: "monospace", color: C.text, fontWeight: 700, wordBreak: "break-all", flex: 1 }}>{m.id}</code>
-                  {m.note && <span style={{ background: bg, color, borderRadius: 4, padding: "2px 8px", fontSize: 11, fontWeight: 700, whiteSpace: "nowrap", flexShrink: 0 }}>{m.note}</span>}
-                </div>
-
-                {/* Context window */}
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <span style={{ fontSize: 11, color: C.textDim, fontWeight: 600 }}>Context</span>
-                  <span style={{ background: C.bgInput, border: `1px solid ${C.border}`, borderRadius: 4, padding: "1px 8px", fontSize: 12, fontFamily: "monospace", color: C.cyan, fontWeight: 700 }}>{m.ctx}</span>
-                </div>
-
-                {/* Capabilities */}
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
-                  {m.caps.map((cap) => {
-                    const meta = CAP_LABEL[cap];
-                    return <span key={cap} style={{ fontSize: 11, color: meta.color, background: `${meta.color}18`, border: `1px solid ${meta.color}40`, borderRadius: 4, padding: "2px 7px", fontWeight: 600 }}>{meta.label}</span>;
-                  })}
-                </div>
-
-                {/* Route + test button */}
-                <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 10, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
-                  <code style={{ fontSize: 11, color: C.textDim, fontFamily: "monospace", flex: 1, minWidth: 0, wordBreak: "break-all" }}>{m.route}</code>
-                  <button onClick={() => onGoChat(m.id)} style={{ background: `linear-gradient(135deg, ${C.gradientA}, ${C.gradientB})`, border: "none", borderRadius: 6, padding: "4px 12px", fontSize: 12, fontWeight: 700, color: "#fff", cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0 }}>
-                    {t.tabChat} →
-                  </button>
-                </div>
+      {/* ── STATIC view ── */}
+      {activeView === "static" && (
+        <div>
+          <div style={{ display: "flex", gap: 12, marginBottom: 28, flexWrap: "wrap" }}>
+            {[
+              { label: "精选合计",    value: `${ALL_MODELS.length}`,            color: C.text },
+              { label: "OpenAI",      value: `${OPENAI_MODELS.length}`,          color: C.blue },
+              { label: "Anthropic",   value: `${ANTHROPIC_MODELS.length}`,       color: C.orange },
+              { label: "Gemini",      value: `${GEMINI_MODELS.length}`,          color: C.emerald },
+              { label: "OpenRouter",  value: `${OPENROUTER_MODELS.length}`,      color: C.purple },
+            ].map((s) => (
+              <div key={s.label} style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 10, padding: "12px 20px", display: "flex", flexDirection: "column", gap: 4, minWidth: 90 }}>
+                <div style={{ fontSize: 22, fontWeight: 800, color: s.color, fontFamily: "monospace" }}>{s.value}</div>
+                <div style={{ fontSize: 12, color: C.textMuted, fontWeight: 600 }}>{s.label}</div>
               </div>
             ))}
           </div>
+
+          {staticGroups.map(({ provider, color, bg, models }) => (
+            <div key={provider} style={{ marginBottom: 32 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
+                <div style={{ width: 4, height: 22, borderRadius: 2, background: color, flexShrink: 0 }} />
+                <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: C.text }}>{provider}</h2>
+                <span style={{ background: bg, color, borderRadius: 20, padding: "2px 10px", fontSize: 12, fontWeight: 700 }}>{models.length} models</span>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 12 }}>
+                {models.map((m) => (
+                  <div key={m.id} style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12, padding: "16px 18px", display: "flex", flexDirection: "column", gap: 10, transition: "border-color 0.15s" }}
+                    onMouseEnter={(e) => (e.currentTarget.style.borderColor = color)}
+                    onMouseLeave={(e) => (e.currentTarget.style.borderColor = C.border)}>
+                    <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
+                      <code style={{ fontSize: 13, fontFamily: "monospace", color: C.text, fontWeight: 700, wordBreak: "break-all", flex: 1 }}>{m.id}</code>
+                      {m.note && <span style={{ background: bg, color, borderRadius: 4, padding: "2px 8px", fontSize: 11, fontWeight: 700, whiteSpace: "nowrap", flexShrink: 0 }}>{m.note}</span>}
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <span style={{ fontSize: 11, color: C.textDim, fontWeight: 600 }}>Context</span>
+                      <span style={{ background: C.bgInput, border: `1px solid ${C.border}`, borderRadius: 4, padding: "1px 8px", fontSize: 12, fontFamily: "monospace", color: C.cyan, fontWeight: 700 }}>{m.ctx}</span>
+                    </div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+                      {m.caps.map((cap) => {
+                        const meta = CAP_LABEL[cap];
+                        return <span key={cap} style={{ fontSize: 11, color: meta.color, background: `${meta.color}18`, border: `1px solid ${meta.color}40`, borderRadius: 4, padding: "2px 7px", fontWeight: 600 }}>{meta.label}</span>;
+                      })}
+                    </div>
+                    <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 10, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
+                      <code style={{ fontSize: 11, color: C.textDim, fontFamily: "monospace", flex: 1, minWidth: 0, wordBreak: "break-all" }}>{m.route}</code>
+                      <button onClick={() => onGoChat(m.id)} style={{ background: `linear-gradient(135deg, ${C.gradientA}, ${C.gradientB})`, border: "none", borderRadius: 6, padding: "4px 12px", fontSize: 12, fontWeight: 700, color: "#fff", cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0 }}>
+                        {t.tabChat} →
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
-      ))}
+      )}
+
+      {/* ── LIVE view ── */}
+      {activeView === "live" && syncData && (
+        <div>
+          {/* Live stats */}
+          <div style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
+            <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 10, padding: "12px 20px", display: "flex", flexDirection: "column", gap: 4, minWidth: 90 }}>
+              <div style={{ fontSize: 22, fontWeight: 800, color: C.text, fontFamily: "monospace" }}>{allLiveModels.length}</div>
+              <div style={{ fontSize: 12, color: C.textMuted, fontWeight: 600 }}>合计</div>
+            </div>
+            {liveByProvider.map((r) => {
+              const color = providerColorOf(C, r.provider);
+              const label = r.provider.charAt(0).toUpperCase() + r.provider.slice(1);
+              const isLive = r.source === "live";
+              return (
+                <div key={r.provider} style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 10, padding: "12px 20px", display: "flex", flexDirection: "column", gap: 4, minWidth: 90 }}>
+                  <div style={{ fontSize: 22, fontWeight: 800, color, fontFamily: "monospace" }}>{r.count}</div>
+                  <div style={{ fontSize: 12, color: C.textMuted, fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}>
+                    {label}
+                    <span style={{ fontSize: 10, fontWeight: 700, padding: "1px 5px", borderRadius: 3, background: isLive ? `${C.emerald}20` : C.bgInput, color: isLive ? C.emerald : C.textDim, border: `1px solid ${isLive ? C.emerald : C.border}40` }}>
+                      {isLive ? "live" : "static"}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Search */}
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="搜索模型 ID 或名称…"
+            style={{ width: "100%", boxSizing: "border-box", background: C.bgInput, border: `1px solid ${C.border}`, borderRadius: 8, padding: "8px 14px", fontSize: 13, color: C.text, marginBottom: 20, outline: "none" }}
+          />
+
+          {search.trim() ? (
+            /* Search results as flat list */
+            <div>
+              <div style={{ fontSize: 12, color: C.textDim, marginBottom: 10 }}>找到 {filteredLive.length} 个匹配模型</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {filteredLive.map((m) => {
+                  const color = providerColorOf(C, m.provider);
+                  const bg = providerBgOf(C, m.provider);
+                  return (
+                    <div key={m.id} style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 14px", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                      <span style={{ background: bg, color, borderRadius: 4, padding: "2px 8px", fontSize: 11, fontWeight: 700, whiteSpace: "nowrap", flexShrink: 0 }}>{m.provider}</span>
+                      <code style={{ fontSize: 13, fontFamily: "monospace", color: C.text, fontWeight: 600, flex: 1, minWidth: 0, wordBreak: "break-all" }}>{m.id}</code>
+                      {m.contextLength && <span style={{ fontSize: 11, color: C.cyan, fontFamily: "monospace", whiteSpace: "nowrap" }}>{fmtCtx(m.contextLength)}</span>}
+                      <button onClick={() => onGoChat(m.id)} style={{ background: `linear-gradient(135deg, ${C.gradientA}, ${C.gradientB})`, border: "none", borderRadius: 5, padding: "3px 10px", fontSize: 11, fontWeight: 700, color: "#fff", cursor: "pointer", flexShrink: 0 }}>Test →</button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : (
+            /* Grouped by provider */
+            <div>
+              {liveByProvider.map((result) => {
+                const color = providerColorOf(C, result.provider);
+                const bg = providerBgOf(C, result.provider);
+                const label = result.provider.charAt(0).toUpperCase() + result.provider.slice(1);
+                if (!result.ok) {
+                  return (
+                    <div key={result.provider} style={{ marginBottom: 24, background: C.bgCard, border: `1px solid ${C.red}30`, borderRadius: 10, padding: "14px 18px" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <div style={{ width: 4, height: 18, borderRadius: 2, background: C.red, flexShrink: 0 }} />
+                        <span style={{ fontSize: 15, fontWeight: 700, color: C.text }}>{label}</span>
+                        <span style={{ fontSize: 12, color: C.red }}>获取失败: {result.error}</span>
+                      </div>
+                    </div>
+                  );
+                }
+                if (result.provider === "openrouter") {
+                  return (
+                    <div key="openrouter" style={{ marginBottom: 32 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
+                        <div style={{ width: 4, height: 22, borderRadius: 2, background: color, flexShrink: 0 }} />
+                        <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: C.text }}>OpenRouter</h2>
+                        <span style={{ background: bg, color, borderRadius: 20, padding: "2px 10px", fontSize: 12, fontWeight: 700 }}>{result.count} models</span>
+                        <span style={{ fontSize: 12, color: C.textDim }}>{orSubProviders.length} 家厂商</span>
+                      </div>
+                      {orSubProviders.map(([sub, models]) => (
+                        <div key={sub} style={{ marginBottom: 18 }}>
+                          <div style={{ fontSize: 12, fontWeight: 700, color: color, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8, display: "flex", alignItems: "center", gap: 8 }}>
+                            <code>{sub}</code>
+                            <span style={{ background: bg, color, borderRadius: 10, padding: "1px 8px", fontSize: 11 }}>{models.length}</span>
+                          </div>
+                          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                            {models.map((m) => (
+                              <div key={m.id} style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 7, padding: "8px 12px", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                                <code style={{ fontSize: 12, fontFamily: "monospace", color: C.text, flex: 1, minWidth: 0, wordBreak: "break-all" }}>{m.id}</code>
+                                {m.name && m.name !== m.id && <span style={{ fontSize: 11, color: C.textDim, flexShrink: 0 }}>{m.name}</span>}
+                                {m.contextLength && <span style={{ fontSize: 11, color: C.cyan, fontFamily: "monospace", whiteSpace: "nowrap", flexShrink: 0 }}>{fmtCtx(m.contextLength)}</span>}
+                                <button onClick={() => onGoChat(m.id)} style={{ background: `linear-gradient(135deg, ${C.gradientA}, ${C.gradientB})`, border: "none", borderRadius: 5, padding: "2px 8px", fontSize: 11, fontWeight: 700, color: "#fff", cursor: "pointer", flexShrink: 0 }}>Test →</button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                }
+                return (
+                  <div key={result.provider} style={{ marginBottom: 28 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+                      <div style={{ width: 4, height: 22, borderRadius: 2, background: color, flexShrink: 0 }} />
+                      <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: C.text }}>{label}</h2>
+                      <span style={{ background: bg, color, borderRadius: 20, padding: "2px 10px", fontSize: 12, fontWeight: 700 }}>{result.count} models</span>
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                      {result.models.map((m) => (
+                        <div key={m.id} style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 8, padding: "9px 14px", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                          <code style={{ fontSize: 13, fontFamily: "monospace", color: C.text, fontWeight: 600, flex: 1, minWidth: 0, wordBreak: "break-all" }}>{m.id}</code>
+                          {m.name && m.name !== m.id && <span style={{ fontSize: 11, color: C.textDim, flexShrink: 0 }}>{m.name}</span>}
+                          {m.contextLength && <span style={{ fontSize: 11, color: C.cyan, fontFamily: "monospace", whiteSpace: "nowrap" }}>{fmtCtx(m.contextLength)}</span>}
+                          <button onClick={() => onGoChat(m.id)} style={{ background: `linear-gradient(135deg, ${C.gradientA}, ${C.gradientB})`, border: "none", borderRadius: 5, padding: "3px 10px", fontSize: 11, fontWeight: 700, color: "#fff", cursor: "pointer", flexShrink: 0 }}>Test →</button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -1016,7 +1235,7 @@ export default function App() {
         )}
 
         {tab === "models" && (
-          <ModelsTab C={C} t={t} onGoChat={handleGoChat} />
+          <ModelsTab C={C} t={t} onGoChat={handleGoChat} adminToken={adminToken} />
         )}
 
         {tab === "settings" && (

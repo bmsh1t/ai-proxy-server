@@ -5,6 +5,7 @@ import { GoogleGenAI } from "@google/genai";
 import { getConfig } from "../lib/config.js";
 import { fetchCredits, buildCreditsJson } from "../lib/credits.js";
 import { getModelDefinition, listModelObjects, requestHasVisionInput, supportsVision } from "../lib/model-catalog.js";
+import { getAllSyncedModels } from "../lib/model-sync.js";
 import { normalizeSamplingParams } from "../lib/sampling.js";
 import {
   buildAnthropicThinkingPayload,
@@ -1105,7 +1106,23 @@ function setupSseHeaders(req: Request, res: Response, keepaliveFn: () => void): 
 // ─── GET /v1/models ───────────────────────────────────────────────────────────
 
 router.get("/models", requireAuth, (_req: Request, res: Response) => {
-  res.json({ object: "list", data: listModelObjects() });
+  const now = Math.floor(Date.now() / 1000);
+  const staticModels = listModelObjects(now);
+  const synced = getAllSyncedModels();
+  if (synced.length === 0) {
+    res.json({ object: "list", data: staticModels });
+    return;
+  }
+  const staticIds = new Set(staticModels.map((m) => m.id));
+  const syncedExtra = synced
+    .filter((m) => !staticIds.has(m.id))
+    .map((m) => ({
+      id: m.id,
+      object: "model" as const,
+      created: m.created ?? now,
+      owned_by: m.ownedBy,
+    }));
+  res.json({ object: "list", data: [...staticModels, ...syncedExtra] });
 });
 
 // ─── GET /v1/credits ──────────────────────────────────────────────────────────
