@@ -256,7 +256,7 @@ const T_EN = {
 
 type TType = typeof T_CN;
 type Lang = "cn" | "en";
-type Cap = "stream" | "tools" | "vision" | "reasoning" | "json";
+type Cap = "stream" | "tools" | "vision" | "reasoning" | "json" | "image";
 type ModelMeta = { id: string; note?: string; ctx: string; caps: Cap[]; route: string };
 
 /* ─────────────────────────────────────────────
@@ -312,6 +312,15 @@ const OPENROUTER_MODELS: ModelMeta[] = [
   { id: "microsoft/phi-4",                                ctx: "16K",  caps: ["stream","tools","json"],            route: "/v1/chat/completions" },
   { id: "microsoft/phi-4-multimodal-instruct",            ctx: "128K", caps: ["stream","tools","vision","json"],  route: "/v1/chat/completions" },
   { id: "nvidia/llama-3.1-nemotron-70b-instruct",         ctx: "128K", caps: ["stream","tools","json"],           route: "/v1/chat/completions" },
+  // ── Image generation ───────────────────────────────────────────────────────
+  { id: "google/gemini-3.1-flash-image-preview", note: "Image Gen", ctx: "—", caps: ["image","vision"], route: "/v1/chat/completions" },
+  { id: "google/gemini-3-pro-image-preview",     note: "Image Gen", ctx: "—", caps: ["image","vision"], route: "/v1/chat/completions" },
+  { id: "google/gemini-2.0-flash-exp:image-generation", note: "Image Gen", ctx: "—", caps: ["image","vision"], route: "/v1/chat/completions" },
+  { id: "openai/gpt-image-1",            note: "Image Gen", ctx: "—", caps: ["image","vision"], route: "/v1/chat/completions" },
+  { id: "black-forest-labs/flux-1.1-pro", note: "Image Gen", ctx: "—", caps: ["image"], route: "/v1/chat/completions" },
+  { id: "black-forest-labs/flux-1-schnell", note: "Fast",  ctx: "—", caps: ["image"], route: "/v1/chat/completions" },
+  { id: "recraft-ai/recraft-v3",          note: "Image Gen", ctx: "—", caps: ["image"], route: "/v1/chat/completions" },
+  { id: "stabilityai/stable-diffusion-3.5-large", note: "Image Gen", ctx: "—", caps: ["image"], route: "/v1/chat/completions" },
 ];
 const ALL_MODELS = [
   ...OPENAI_MODELS.map((m) => ({ ...m, provider: "OpenAI" as const })),
@@ -589,7 +598,11 @@ function ChatTab({ C, t, proxyApiKey, adminToken, onKeyRefresh, onForceRelogin, 
 
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
-  const isImageGenModel = (m: string) => /image/i.test(m);
+  const isImageGenModel = (m: string) => {
+    const meta = ALL_MODELS.find((x) => x.id === m);
+    if (meta) return meta.caps.includes("image");
+    return /image/i.test(m);
+  };
 
   const sendMessage = async () => {
     if (!input.trim() || streaming) return;
@@ -713,7 +726,14 @@ function ChatTab({ C, t, proxyApiKey, adminToken, onKeyRefresh, onForceRelogin, 
                   transition: "all 0.15s", letterSpacing: "-0.01em",
                 }}
               >
-                {m.id}
+                <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                  {m.id}
+                  {m.caps.includes("image") && (
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, opacity: 0.7 }}>
+                      <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
+                    </svg>
+                  )}
+                </span>
                 {m.note && (
                   <span style={{
                     display: "block", fontSize: 9, fontFamily: "system-ui",
@@ -1051,6 +1071,7 @@ const CAP_LABEL: Record<Cap, { label: string; color: string }> = {
   vision:    { label: "Vision",     color: "hsl(142,50%,40%)" },
   reasoning: { label: "Reasoning",  color: "hsl(30,75%,48%)"  },
   json:      { label: "JSON Mode",  color: "hsl(210,65%,48%)" },
+  image:     { label: "Image Gen",  color: "hsl(320,60%,50%)" },
 };
 
 type SyncedModelEntry = { id: string; provider: string; contextLength?: number; ownedBy?: string; name?: string };
