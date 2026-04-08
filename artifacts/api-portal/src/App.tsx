@@ -995,7 +995,7 @@ function providerBgOf(C: Record<string, string>, p: string): string {
   return C.purpleDark;
 }
 
-function ModelsTab({ C, t, onGoChat, adminToken }: { C: Record<string, string>; t: TType; onGoChat: (modelId: string) => void; adminToken: string }) {
+function ModelsTab({ C, t, onGoChat, adminToken, onForceRelogin }: { C: Record<string, string>; t: TType; onGoChat: (modelId: string) => void; adminToken: string; onForceRelogin: () => void }) {
   const staticGroups: { provider: string; color: string; bg: string; models: ModelMeta[] }[] = [
     { provider: "OpenAI",     color: C.blue,     bg: C.blueDark,     models: OPENAI_MODELS },
     { provider: "Anthropic",  color: C.orange,   bg: C.orangeDark,   models: ANTHROPIC_MODELS },
@@ -1016,12 +1016,13 @@ function ModelsTab({ C, t, onGoChat, adminToken }: { C: Record<string, string>; 
       const headers: Record<string, string> = { Authorization: `Bearer ${adminToken}` };
       if (force) headers["Content-Type"] = "application/json";
       const r = await fetch("/api/sync-models", { method, headers });
+      if (r.status === 401) { onForceRelogin(); return; }
       const d = await r.json() as SyncData;
       if (d.ok) setSyncData(d);
       else setSyncError("获取模型列表失败");
     } catch (e: unknown) { setSyncError(String(e)); }
     finally { setSyncing(false); }
-  }, [adminToken]);
+  }, [adminToken, onForceRelogin]);
 
   useEffect(() => { void loadModels(); }, [loadModels]);
 
@@ -1659,7 +1660,7 @@ export default function App() {
 
             {/* ── Models ── */}
             {tab === "models" && (
-              <ModelsTab C={C} t={t} onGoChat={handleGoChat} adminToken={adminToken} />
+              <ModelsTab C={C} t={t} onGoChat={handleGoChat} adminToken={adminToken} onForceRelogin={handleForceRelogin} />
             )}
 
             {/* ── Settings ── */}
