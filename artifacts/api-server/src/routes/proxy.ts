@@ -1964,6 +1964,7 @@ router.post("/messages", requireAuth, async (req: Request, res: Response) => {
   const targetProvider = isAnthropicModel(model) ? "anthropic"
     : isOpenAIModel(model) ? "openai"
     : isGeminiModel(model) ? "gemini"
+    : isOpenRouterModel(model) ? "openrouter"
     : null;
   const visionSummary = summarizeVisionInput("messages", body as unknown as Record<string, unknown>);
   const hasVisionInput = requestHasVisionInput("messages", body as unknown as Record<string, unknown>);
@@ -2505,6 +2506,162 @@ router.post("/messages", requireAuth, async (req: Request, res: Response) => {
       });
     } catch (err: unknown) {
       req.log.error({ err, model, provider: "gemini" }, "Gemini error in /messages");
+      sendAnthropicProviderError(res, err);
+    }
+    return;
+  }
+
+  if (isOpenRouterModel(model)) {
+    const sampling = normalizeSamplingParams("openai", samplingInput);
+    const openrouter = getOpenRouterClient();
+    let converted: ReturnType<typeof convertAnthropicRequestToOpenAIPayload>;
+    try {
+      converted = convertAnthropicRequestToOpenAIPayload(body);
+    } catch (err) {
+      req.log.warn({ err, model, provider: "openrouter" }, "Invalid /messages payload for OpenRouter conversion");
+      sendAnthropicInvalidRequest(res, err instanceof VisionInputError ? err.message : "messages payload is not compatible with Anthropic/OpenRouter conversion");
+      return;
+    }
+
+    const orParams: OpenAI.ChatCompletionCreateParams = {
+      model,
+      messages: converted.messages,
+      stream: false,
+    };
+    if (body.max_tokens) orParams.max_tokens = body.max_tokens;
+    if (sampling.temperature !== undefined) orParams.temperature = sampling.temperature;
+    if (sampling.topP !== undefined) orParams.top_p = sampling.topP;
+    if (sampling.frequencyPenalty !== undefined) orParams.frequency_penalty = sampling.frequencyPenalty;
+    if (sampling.presencePenalty !== undefined) orParams.presence_penalty = sampling.presencePenalty;
+    if (converted.tools) orParams.tools = converted.tools;
+    if (converted.toolChoice) orParams.tool_choice = converted.toolChoice;
+
+    if (stream) {
+      const keepalive = setupSseHeaders(req, res, () => {
+        res.write(": keepalive\n\n");
+        (res as any).flush?.();
+      });
+      req.on("close", () => clearInterval(keepalive));
+
+      try {
+        const msgId = `msg_${Date.now()}`;
+        res.write(`event: message_start\ndata: ${JSON.stringify({ type: "message_start", message: { id: msgId, type: "message", role: "assistant", content: [], model, stop_reason: null, stop_sequence: null, usage: { input_tokens: 0, output_tokens: 0 } } })}\n\n`);
+        res.write(`event: ping\ndata: ${JSON.stringify({ type: "ping" })}\n\n`);
+        (res as any).flush?.();
+
+        const orStream = await withRetry(() =>
+          openrouter.chat.completions.create({ ...orParams, stream: true })
+        );
+
+        let currentToolBlockIndex = -1;
+        let nextContentBlockIndex = 0;
+        let textBlockIndex = -1;
+        let outputTokens = 0;
+        let textBlockActive = false;
+
+        const stopTextBlock = () => {
+          if (!textBlockActive || textBlockIndex < 0) return;
+          res.write(`event: content_block_stop\ndata: ${JSON.stringify({ type: "content_block_stop", index: textBlockIndex })}\n\n`);
+          textBlockActive = false;
+        };
+
+        const startTextBlock = () => {
+          if (textBlockActive) return;
+          if (currentToolBlockIndex >= 0) {
+            res.write(`event: content_block_stop\ndata: ${JSON.stringify({ type: "content_block_stop", index: currentToolBlockIndex })}\n\n`);
+            currentToolBlockIndex = -1;
+          }
+          if (textBlockIndex < 0) textBlockIndex = nextContentBlockIndex++;
+          res.write(`event: content_block_start\ndata: ${JSON.stringify({ type: "content_block_start", index: textBlockIndex, content_block: { type: "text", text: "" } })}\n\n`);
+          textBlockActive = true;
+        };
+
+        for await (const chunk of orStream) {
+          const choice = chunk.choices[0];
+          if (!choice) continue;
+          const delta = choice.delta;
+
+          if (delta.content) {
+            startTextBlock();
+            res.write(`event: content_block_delta\ndata: ${JSON.stringify({ type: "content_block_delta", index: textBlockIndex, delta: { type: "text_delta", text: delta.content } })}\n\n`);
+            outputTokens++;
+            (res as any).flush?.();
+          }
+
+          if (delta.tool_calls) {
+            for (const tc of delta.tool_calls) {
+              if (tc.id && tc.function?.name) {
+                stopTextBlock();
+                if (currentToolBlockIndex >= 0) {
+                  res.write(`event: content_block_stop\ndata: ${JSON.stringify({ type: "content_block_stop", index: currentToolBlockIndex })}\n\n`);
+                }
+                currentToolBlockIndex = nextContentBlockIndex++;
+                res.write(`event: content_block_start\ndata: ${JSON.stringify({ type: "content_block_start", index: currentToolBlockIndex, content_block: { type: "tool_use", id: tc.id, name: tc.function.name, input: {} } })}\n\n`);
+                (res as any).flush?.();
+              }
+              if (tc.function?.arguments) {
+                res.write(`event: content_block_delta\ndata: ${JSON.stringify({ type: "content_block_delta", index: currentToolBlockIndex, delta: { type: "input_json_delta", partial_json: tc.function.arguments } })}\n\n`);
+                (res as any).flush?.();
+              }
+            }
+          }
+
+          if (choice.finish_reason) {
+            const stopReason = choice.finish_reason === "tool_calls" ? "tool_use"
+              : choice.finish_reason === "length" ? "max_tokens"
+              : "end_turn";
+            stopTextBlock();
+            if (currentToolBlockIndex >= 0) {
+              res.write(`event: content_block_stop\ndata: ${JSON.stringify({ type: "content_block_stop", index: currentToolBlockIndex })}\n\n`);
+              currentToolBlockIndex = -1;
+            }
+            res.write(`event: message_delta\ndata: ${JSON.stringify({ type: "message_delta", delta: { stop_reason: stopReason, stop_sequence: null }, usage: { output_tokens: outputTokens } })}\n\n`);
+            res.write(`event: message_stop\ndata: ${JSON.stringify({ type: "message_stop" })}\n\n`);
+            (res as any).flush?.();
+          }
+        }
+      } catch (streamErr) {
+        req.log.error({ err: streamErr, model, provider: "openrouter" }, "OpenRouter→Anthropic stream error in /messages");
+        try {
+          const normalized = normalizeProviderError(streamErr, "Stream error");
+          const errObj = { type: "error", error: { type: normalized.anthropicType, message: normalized.message } };
+          res.write(`event: error\ndata: ${JSON.stringify(errObj)}\n\n`);
+        } catch {}
+      } finally {
+        clearInterval(keepalive);
+        res.end();
+      }
+      return;
+    }
+
+    try {
+      const orResult = await withRetry(() =>
+        openrouter.chat.completions.create({ ...orParams, stream: false })
+      ) as OpenAI.ChatCompletion;
+      const choice = orResult.choices[0];
+      const content: AnthropicClientResponseBlock[] = [];
+      if (choice.message.content) content.push({ type: "text", text: choice.message.content });
+      if (choice.message.tool_calls) {
+        for (const tc of choice.message.tool_calls) {
+          if (!isOpenAIFunctionToolCall(tc)) continue;
+          let input: Record<string, unknown> = {};
+          try { input = JSON.parse(tc.function.arguments); } catch { input = {}; }
+          content.push({ type: "tool_use", id: tc.id, name: tc.function.name, input });
+        }
+      }
+      const stopReason = choice.finish_reason === "tool_calls" ? "tool_use"
+        : choice.finish_reason === "length" ? "max_tokens"
+        : "end_turn";
+      res.json({
+        id: orResult.id, type: "message", role: "assistant", content, model,
+        stop_reason: stopReason, stop_sequence: null,
+        usage: {
+          input_tokens: orResult.usage?.prompt_tokens ?? 0,
+          output_tokens: orResult.usage?.completion_tokens ?? 0,
+        },
+      });
+    } catch (err: unknown) {
+      req.log.error({ err, model, provider: "openrouter" }, "OpenRouter error in /messages");
       sendAnthropicProviderError(res, err);
     }
     return;
