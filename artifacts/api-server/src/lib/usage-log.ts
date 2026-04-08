@@ -1,9 +1,7 @@
 import fs from "fs";
 import path from "path";
-import { fileURLToPath } from "url";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const LOG_FILE = path.join(__dirname, "../../usage-log.json");
+const LOG_FILE = process.env.USAGE_LOG_PATH ?? path.join(process.cwd(), "usage-log.json");
 const MAX_ENTRIES = 1000;
 
 export interface UsageEntry {

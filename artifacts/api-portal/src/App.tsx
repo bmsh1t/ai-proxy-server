@@ -1332,13 +1332,13 @@ function fmtNum(n: number): string {
   if (n >= 1_000) return (n / 1_000).toFixed(1) + "K";
   return String(n);
 }
-function fmtTs(ts: number): string {
+function fmtTs(ts: number, lang: Lang = "cn"): string {
   const d = new Date(ts);
-  return d.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  return d.toLocaleTimeString(lang === "cn" ? "zh-CN" : "en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 }
 
-function UsageTab({ C, t, adminToken, onForceRelogin }: {
-  C: Record<string, string>; t: TType; adminToken: string; onForceRelogin: () => void;
+function UsageTab({ C, t, lang, adminToken, onForceRelogin }: {
+  C: Record<string, string>; t: TType; lang: Lang; adminToken: string; onForceRelogin: () => void;
 }) {
   const [loading, setLoading] = useState(false);
   const [summary, setSummary] = useState<UsageSummary | null>(null);
@@ -1446,7 +1446,7 @@ function UsageTab({ C, t, adminToken, onForceRelogin }: {
                 <tbody>
                   {entries.map((e, i) => (
                     <tr key={i} style={{ borderBottom: i < entries.length - 1 ? `1px solid ${C.border}` : "none" }}>
-                      <td style={{ padding: "6px 12px", color: C.textDim, whiteSpace: "nowrap" }}>{fmtTs(e.timestamp)}</td>
+                      <td style={{ padding: "6px 12px", color: C.textDim, whiteSpace: "nowrap" }}>{fmtTs(e.timestamp, lang)}</td>
                       <td style={{ padding: "6px 12px", maxWidth: 200 }}>
                         <code style={{ fontFamily: "'SF Mono','Fira Code',monospace", color: C.text, fontSize: 11 }}>{e.model}</code>
                       </td>
@@ -1846,7 +1846,7 @@ export default function App() {
               />
             )}
             {tab === "usage" && (
-              <UsageTab C={C} t={t} adminToken={adminToken} onForceRelogin={handleForceRelogin} />
+              <UsageTab C={C} t={t} lang={lang} adminToken={adminToken} onForceRelogin={handleForceRelogin} />
             )}
           </div>
         </div>
