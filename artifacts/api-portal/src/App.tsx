@@ -77,7 +77,7 @@ const T_CN = {
   loginLoading: "验证中...",
   logout: "退出",
   online: "在线", offline: "离线", checking: "检查中...",
-  tabDashboard: "Dashboard", tabChat: "聊天测试", tabModels: "模型列表", tabSettings: "设置",
+  tabDashboard: "Dashboard", tabChat: "聊天测试", tabModels: "模型列表", tabSettings: "设置", tabUsage: "用量",
   connDetails: "连接详情",
   proxyKeyHint: (k: string) => `当前 PROXY_API_KEY: ${k} · 可在"设置"页签修改`,
   apiEndpoints: "API 端点",
@@ -150,6 +150,14 @@ const T_CN = {
   settingsOAIKeySet: "已配置",
   settingsOAIKeyUnset: "未配置",
   settingsOAIKeyFromEnv: "已通过环境变量配置，无需在此填写",
+  usageTitle: "Token 消耗统计",
+  usageTotalRequests: "总请求数",
+  usagePromptTokens: "Prompt Tokens", usageCompletionTokens: "Completion Tokens", usageTotalTokens: "总 Token",
+  usageByProvider: "按服务商分组",
+  usageRecentTitle: "最近请求", usageNoData: "暂无请求记录",
+  usageRefresh: "↻ 刷新",
+  usageColTime: "时间", usageColModel: "模型", usageColProvider: "服务商",
+  usageColPrompt: "Prompt", usageColCompletion: "Completion", usageColTotal: "Total", usageColLatency: "延迟(ms)",
 };
 
 const T_EN = {
@@ -163,7 +171,7 @@ const T_EN = {
   loginLoading: "Verifying...",
   logout: "Sign Out",
   online: "Online", offline: "Offline", checking: "Checking...",
-  tabDashboard: "Dashboard", tabChat: "Chat", tabModels: "Models", tabSettings: "Settings",
+  tabDashboard: "Dashboard", tabChat: "Chat", tabModels: "Models", tabSettings: "Settings", tabUsage: "Usage",
   connDetails: "Connection Details",
   proxyKeyHint: (k: string) => `Current PROXY_API_KEY: ${k} · Change it in the Settings tab`,
   apiEndpoints: "API Endpoints",
@@ -236,6 +244,14 @@ const T_EN = {
   settingsOAIKeySet: "Configured",
   settingsOAIKeyUnset: "Not configured",
   settingsOAIKeyFromEnv: "Configured via environment variable — no action needed",
+  usageTitle: "Token Usage",
+  usageTotalRequests: "Total Requests",
+  usagePromptTokens: "Prompt Tokens", usageCompletionTokens: "Completion Tokens", usageTotalTokens: "Total Tokens",
+  usageByProvider: "By Provider",
+  usageRecentTitle: "Recent Requests", usageNoData: "No requests recorded",
+  usageRefresh: "↻ Refresh",
+  usageColTime: "Time", usageColModel: "Model", usageColProvider: "Provider",
+  usageColPrompt: "Prompt", usageColCompletion: "Completion", usageColTotal: "Total", usageColLatency: "Latency(ms)",
 };
 
 type TType = typeof T_CN;
@@ -1298,6 +1314,162 @@ type CreditsResp = {
 function fmtUsd(n: number): string { return "$" + n.toFixed(2); }
 
 /* ─────────────────────────────────────────────
+   Usage Tab
+───────────────────────────────────────────── */
+type UsageEntry = {
+  timestamp: number; model: string; provider: string;
+  promptTokens: number; completionTokens: number; totalTokens: number;
+  latencyMs: number; cached: boolean;
+};
+type ProviderStats = { requests: number; promptTokens: number; completionTokens: number; totalTokens: number };
+type UsageSummary = {
+  totalRequests: number; totalPromptTokens: number; totalCompletionTokens: number; totalTokens: number;
+  cachedRequests: number; byProvider: Record<string, ProviderStats>;
+};
+
+function fmtNum(n: number): string {
+  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + "M";
+  if (n >= 1_000) return (n / 1_000).toFixed(1) + "K";
+  return String(n);
+}
+function fmtTs(ts: number): string {
+  const d = new Date(ts);
+  return d.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+}
+
+function UsageTab({ C, t, adminToken, onForceRelogin }: {
+  C: Record<string, string>; t: TType; adminToken: string; onForceRelogin: () => void;
+}) {
+  const [loading, setLoading] = useState(false);
+  const [summary, setSummary] = useState<UsageSummary | null>(null);
+  const [entries, setEntries] = useState<UsageEntry[]>([]);
+  const [err, setErr] = useState("");
+
+  const load = useCallback(async () => {
+    setLoading(true); setErr("");
+    try {
+      const r = await fetch("/api/usage", { headers: { Authorization: `Bearer ${adminToken}` } });
+      if (r.status === 401) { onForceRelogin(); return; }
+      if (r.ok) {
+        const d = await r.json() as { summary: UsageSummary; entries: UsageEntry[] };
+        setSummary(d.summary); setEntries(d.entries);
+      }
+    } catch (e) { setErr(String(e)); }
+    finally { setLoading(false); }
+  }, [adminToken, onForceRelogin]);
+
+  useEffect(() => { void load(); }, [load]);
+
+  const providerColor = (p: string) => p === "openai" ? C.blue : p === "anthropic" ? C.orange : p === "gemini" ? C.emerald : C.purple;
+  const providerBg = (p: string) => p === "openai" ? C.blueDark : p === "anthropic" ? C.orangeDark : p === "gemini" ? C.emeraldDark : C.purpleDark;
+
+  const StatCard = ({ label, value, sub, color }: { label: string; value: string; sub?: string; color?: string }) => (
+    <div style={{ background: C.bgCard, borderRadius: 14, padding: "18px 20px", boxShadow: C.shadow, flex: "1 1 140px", minWidth: 120 }}>
+      <div style={{ fontSize: 12, color: C.textMuted, fontWeight: 500, marginBottom: 6, letterSpacing: "-0.01em" }}>{label}</div>
+      <div style={{ fontSize: 26, fontWeight: 700, color: color ?? C.text, letterSpacing: "-0.04em" }}>{value}</div>
+      {sub && <div style={{ fontSize: 11, color: C.textDim, marginTop: 3, letterSpacing: "-0.01em" }}>{sub}</div>}
+    </div>
+  );
+
+  return (
+    <div>
+      {/* Toolbar */}
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 24 }}>
+        <h2 style={{ margin: 0, fontSize: 21, fontWeight: 700, color: C.text, letterSpacing: "-0.04em", flex: 1 }}>{t.usageTitle}</h2>
+        <button onClick={() => void load()} disabled={loading} style={{
+          background: C.bgCard, border: "none", borderRadius: 10, padding: "7px 16px",
+          fontSize: 13, color: loading ? C.textDim : C.blue, cursor: loading ? "not-allowed" : "pointer",
+          boxShadow: C.shadow, fontWeight: 500, letterSpacing: "-0.01em",
+        }}>{loading ? "…" : t.usageRefresh}</button>
+      </div>
+      {err && <div style={{ fontSize: 12, color: C.red, marginBottom: 16 }}>{err}</div>}
+
+      {/* Usage Summary Cards */}
+      {summary && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 28 }}>
+          <StatCard label={t.usageTotalRequests} value={String(summary.totalRequests)} />
+          <StatCard label={t.usagePromptTokens} value={fmtNum(summary.totalPromptTokens)} />
+          <StatCard label={t.usageCompletionTokens} value={fmtNum(summary.totalCompletionTokens)} />
+          <StatCard label={t.usageTotalTokens} value={fmtNum(summary.totalTokens)} color={C.blue} />
+        </div>
+      )}
+
+      {/* By Provider */}
+      {summary && Object.keys(summary.byProvider).length > 0 && (
+        <div style={{ marginBottom: 28 }}>
+          <h3 style={{ margin: "0 0 12px", fontSize: 15, fontWeight: 600, color: C.text, letterSpacing: "-0.02em" }}>{t.usageByProvider}</h3>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {Object.entries(summary.byProvider).map(([prov, stats]) => {
+              const color = providerColor(prov); const bg = providerBg(prov);
+              return (
+                <div key={prov} style={{ background: C.bgCard, borderRadius: 12, padding: "14px 16px", boxShadow: C.shadow, minWidth: 160 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                    <div style={{ width: 3, height: 16, borderRadius: 2, background: color }} />
+                    <span style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{prov}</span>
+                    <span style={{ background: bg, color, fontSize: 10, fontWeight: 600, borderRadius: 5, padding: "1px 7px" }}>{stats.requests}</span>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                    {[
+                      ["Prompt", fmtNum(stats.promptTokens)],
+                      ["Completion", fmtNum(stats.completionTokens)],
+                      ["Total", fmtNum(stats.totalTokens)],
+                    ].map(([k, v]) => (
+                      <div key={k} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <span style={{ fontSize: 11, color: C.textMuted }}>{k}</span>
+                        <span style={{ fontSize: 12, fontFamily: "'SF Mono','Fira Code',monospace", color: C.text, fontWeight: 500 }}>{v}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Recent Requests Table */}
+      <div>
+        <h3 style={{ margin: "0 0 12px", fontSize: 15, fontWeight: 600, color: C.text, letterSpacing: "-0.02em" }}>{t.usageRecentTitle}</h3>
+        {entries.length === 0 ? (
+          <div style={{ background: C.bgCard, borderRadius: 12, padding: "28px 20px", textAlign: "center", fontSize: 13, color: C.textDim, boxShadow: C.shadow }}>{t.usageNoData}</div>
+        ) : (
+          <div style={{ background: C.bgCard, borderRadius: 12, overflow: "hidden", boxShadow: C.shadow }}>
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+                <thead>
+                  <tr style={{ borderBottom: `1px solid ${C.border}` }}>
+                    {[t.usageColTime, t.usageColModel, t.usageColProvider, t.usageColPrompt, t.usageColCompletion, t.usageColTotal, t.usageColLatency].map((h) => (
+                      <th key={h} style={{ padding: "8px 12px", textAlign: "left", color: C.textMuted, fontWeight: 500, whiteSpace: "nowrap" }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {entries.map((e, i) => (
+                    <tr key={i} style={{ borderBottom: i < entries.length - 1 ? `1px solid ${C.border}` : "none" }}>
+                      <td style={{ padding: "6px 12px", color: C.textDim, whiteSpace: "nowrap" }}>{fmtTs(e.timestamp)}</td>
+                      <td style={{ padding: "6px 12px", maxWidth: 200 }}>
+                        <code style={{ fontFamily: "'SF Mono','Fira Code',monospace", color: C.text, fontSize: 11 }}>{e.model}</code>
+                      </td>
+                      <td style={{ padding: "6px 12px" }}>
+                        <span style={{ background: providerBg(e.provider), color: providerColor(e.provider), fontSize: 10, fontWeight: 600, borderRadius: 5, padding: "1px 7px", whiteSpace: "nowrap" }}>{e.provider}</span>
+                      </td>
+                      <td style={{ padding: "6px 12px", color: C.text, fontFamily: "'SF Mono','Fira Code',monospace" }}>{e.promptTokens || "—"}</td>
+                      <td style={{ padding: "6px 12px", color: C.text, fontFamily: "'SF Mono','Fira Code',monospace" }}>{e.completionTokens || "—"}</td>
+                      <td style={{ padding: "6px 12px", color: C.blue, fontWeight: 600, fontFamily: "'SF Mono','Fira Code',monospace" }}>{e.totalTokens || "—"}</td>
+                      <td style={{ padding: "6px 12px", color: C.textDim, fontFamily: "'SF Mono','Fira Code',monospace" }}>{e.latencyMs || "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────
    Root App
 ───────────────────────────────────────────── */
 export default function App() {
@@ -1308,7 +1480,7 @@ export default function App() {
   const [adminToken, setAdminToken] = useState("");
   const [proxyApiKey, setProxyApiKey] = useState("");
   const [authChecked, setAuthChecked] = useState(false);
-  const [tab, setTab] = useState<"dashboard" | "chat" | "models" | "settings">("dashboard");
+  const [tab, setTab] = useState<"dashboard" | "chat" | "models" | "settings" | "usage">("dashboard");
   const [chatInitModel, setChatInitModel] = useState<string | null>(null);
   const [credits, setCredits] = useState<CreditsResp | null>(null);
   const [creditsLoading, setCreditsLoading] = useState(false);
@@ -1412,6 +1584,8 @@ export default function App() {
       icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg> },
     { key: "settings" as const, label: t.tabSettings,
       icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> },
+    { key: "usage" as const, label: t.tabUsage,
+      icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg> },
   ];
 
   return (
@@ -1670,6 +1844,9 @@ export default function App() {
                 openaiDirectKeySet={openaiDirectKeySet} openaiDirectKeyFromEnv={openaiDirectKeyFromEnv}
                 onProxyKeyChange={setProxyApiKey} onOAIKeyChange={setOpenaiDirectKeySet}
               />
+            )}
+            {tab === "usage" && (
+              <UsageTab C={C} t={t} adminToken={adminToken} onForceRelogin={handleForceRelogin} />
             )}
           </div>
         </div>

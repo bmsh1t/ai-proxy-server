@@ -4,6 +4,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { GoogleGenAI } from "@google/genai";
 import { getConfig } from "../lib/config.js";
 import { fetchCredits, buildCreditsJson } from "../lib/credits.js";
+import { appendUsage } from "../lib/usage-log.js";
 import { getModelDefinition, listModelObjects, requestHasVisionInput, supportsVision } from "../lib/model-catalog.js";
 import { getAllSyncedModels } from "../lib/model-sync.js";
 import { normalizeSamplingParams } from "../lib/sampling.js";
@@ -1173,6 +1174,7 @@ router.post("/chat/completions", requireAuth, async (req: Request, res: Response
     : isGeminiModel(model) ? "gemini"
     : isOpenRouterModel(model) ? "openrouter"
     : null;
+
   const visionSummary = summarizeVisionInput("chat", body);
   const hasVisionInput = requestHasVisionInput("chat", body);
 
@@ -1257,8 +1259,10 @@ router.post("/chat/completions", requireAuth, async (req: Request, res: Response
         }
         res.write("data: [DONE]\n\n");
         clear();
+        const streamLatMs = Date.now() - startTs;
         // Fix 11: log latency
-        req.log.info({ model, provider: "openai", latencyMs: Date.now() - startTs, stream: true }, "OpenAI stream complete");
+        req.log.info({ model, provider: "openai", latencyMs: streamLatMs, stream: true }, "OpenAI stream complete");
+        appendUsage({ timestamp: Date.now(), model, provider: "openai", promptTokens: 0, completionTokens: 0, totalTokens: 0, latencyMs: streamLatMs, cached: false });
       } catch (streamErr) {
         req.log.error({ err: streamErr, model, provider: "openai" }, "OpenAI stream error");
         writeSseError(res, (streamErr as { message?: string }).message ?? "Stream error");
@@ -1273,14 +1277,18 @@ router.post("/chat/completions", requireAuth, async (req: Request, res: Response
           openai.chat.completions.create({ ...openAIParams, stream: false }, { signal: controller.signal })
         );
         clear();
+        const pt = result.usage?.prompt_tokens ?? 0;
+        const ct = result.usage?.completion_tokens ?? 0;
+        const latMs = Date.now() - startTs;
         // Fix 11: log model + usage + latency
         req.log.info({
           model,
           provider: "openai",
-          latencyMs: Date.now() - startTs,
-          promptTokens: result.usage?.prompt_tokens,
-          completionTokens: result.usage?.completion_tokens,
+          latencyMs: latMs,
+          promptTokens: pt,
+          completionTokens: ct,
         }, "OpenAI request complete");
+        appendUsage({ timestamp: Date.now(), model, provider: "openai", promptTokens: pt, completionTokens: ct, totalTokens: pt + ct, latencyMs: latMs, cached: false });
         res.json(result);
       } catch (err: unknown) {
         req.log.error({ err, model, provider: "openai" }, "OpenAI error");
@@ -1504,15 +1512,17 @@ router.post("/chat/completions", requireAuth, async (req: Request, res: Response
           }
         }
         res.write("data: [DONE]\n\n");
+        const anthStreamLatMs = Date.now() - startTs;
         // Fix 11: log after stream
         req.log.info({
           model,
           provider: "anthropic",
-          latencyMs: Date.now() - startTs,
+          latencyMs: anthStreamLatMs,
           promptTokens: streamInputTokens,
           completionTokens: streamOutputTokens,
           stream: true,
         }, "Anthropic stream complete");
+        appendUsage({ timestamp: Date.now(), model, provider: "anthropic", promptTokens: streamInputTokens, completionTokens: streamOutputTokens, totalTokens: streamInputTokens + streamOutputTokens, latencyMs: anthStreamLatMs, cached: false });
       } catch (streamErr) {
         req.log.error({ err: streamErr, model, provider: "anthropic" }, "Anthropic stream error");
         writeSseError(res, (streamErr as { message?: string }).message ?? "Anthropic stream error");
@@ -1528,14 +1538,19 @@ router.post("/chat/completions", requireAuth, async (req: Request, res: Response
       const finalMsg = await withRetry(() =>
         anthropic.messages.stream(anthropicParams, anthropicRequestOptions).finalMessage()
       );
+      const apt = finalMsg.usage.input_tokens;
+      const act = finalMsg.usage.output_tokens;
+      const anthLatMs = Date.now() - startTs;
       req.log.info({
         model,
         provider: "anthropic",
-        latencyMs: Date.now() - startTs,
-        promptTokens: finalMsg.usage.input_tokens,
-        completionTokens: finalMsg.usage.output_tokens,
+        latencyMs: anthLatMs,
+        promptTokens: apt,
+        completionTokens: act,
       }, "Anthropic request complete");
-      res.json(convertAnthropicToOpenAI(finalMsg, model));
+      const anthResult = convertAnthropicToOpenAI(finalMsg, model);
+      appendUsage({ timestamp: Date.now(), model, provider: "anthropic", promptTokens: apt, completionTokens: act, totalTokens: apt + act, latencyMs: anthLatMs, cached: false });
+      res.json(anthResult);
     } catch (err: unknown) {
       req.log.error({ err, model, provider: "anthropic" }, "Anthropic error");
       sendOpenAIProviderError(res, err);
@@ -1708,13 +1723,15 @@ router.post("/chat/completions", requireAuth, async (req: Request, res: Response
         }
 
         res.write("data: [DONE]\n\n");
+        const gemStreamLatMs = Date.now() - startTs;
         req.log.info({
           model, provider: "gemini",
-          latencyMs: Date.now() - startTs,
+          latencyMs: gemStreamLatMs,
           promptTokens: geminiInputTokens,
           completionTokens: geminiOutputTokens,
           stream: true,
         }, "Gemini stream complete");
+        appendUsage({ timestamp: Date.now(), model, provider: "gemini", promptTokens: geminiInputTokens, completionTokens: geminiOutputTokens, totalTokens: geminiInputTokens + geminiOutputTokens, latencyMs: gemStreamLatMs, cached: false });
       } catch (streamErr) {
         req.log.error({ err: streamErr, model, provider: "gemini" }, "Gemini stream error");
         writeSseError(res, (streamErr as { message?: string }).message ?? "Gemini stream error");
@@ -1782,11 +1799,13 @@ router.post("/chat/completions", requireAuth, async (req: Request, res: Response
         usage: buildUsage(promptTokens, completionTokens, meta?.thoughtsTokenCount),
       };
 
+      const gemLatMs = Date.now() - startTs;
       req.log.info({
         model, provider: "gemini",
-        latencyMs: Date.now() - startTs,
+        latencyMs: gemLatMs,
         promptTokens, completionTokens,
       }, "Gemini request complete");
+      appendUsage({ timestamp: Date.now(), model, provider: "gemini", promptTokens, completionTokens, totalTokens: promptTokens + completionTokens, latencyMs: gemLatMs, cached: false });
       res.json(result);
     } catch (err: unknown) {
       req.log.error({ err, model, provider: "gemini" }, "Gemini error");
@@ -1799,6 +1818,7 @@ router.post("/chat/completions", requireAuth, async (req: Request, res: Response
   if (isOpenRouterModel(model)) {
     const client = getOpenRouterClient();
     const { temperature, topP, frequencyPenalty, presencePenalty } = normalizeSamplingParams(samplingInput, "openai");
+    const orStartTs = Date.now();
     try {
       if (stream) {
         const orStream = await client.chat.completions.create({
@@ -1823,6 +1843,9 @@ router.post("/chat/completions", requireAuth, async (req: Request, res: Response
         }
         res.write("data: [DONE]\n\n");
         res.end();
+        const orStreamLatMs = Date.now() - orStartTs;
+        req.log.info({ model, provider: "openrouter", latencyMs: orStreamLatMs, stream: true }, "OpenRouter stream complete");
+        appendUsage({ timestamp: Date.now(), model, provider: "openrouter", promptTokens: 0, completionTokens: 0, totalTokens: 0, latencyMs: orStreamLatMs, cached: false });
       } else {
         const result = await client.chat.completions.create({
           model,
@@ -1837,6 +1860,11 @@ router.post("/chat/completions", requireAuth, async (req: Request, res: Response
           ...(maxTokens !== undefined ? { max_tokens: maxTokens } : {}),
           ...(stop != null ? { stop } : {}),
         });
+        const orPt = result.usage?.prompt_tokens ?? 0;
+        const orCt = result.usage?.completion_tokens ?? 0;
+        const orLatMs = Date.now() - orStartTs;
+        req.log.info({ model, provider: "openrouter", latencyMs: orLatMs, promptTokens: orPt, completionTokens: orCt }, "OpenRouter request complete");
+        appendUsage({ timestamp: Date.now(), model, provider: "openrouter", promptTokens: orPt, completionTokens: orCt, totalTokens: orPt + orCt, latencyMs: orLatMs, cached: false });
         res.json(result);
       }
     } catch (err: unknown) {

@@ -2,6 +2,7 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { getConfig, updateConfig, createAdminToken, validateAdminToken, revokeAdminToken } from "../lib/config.js";
 import { fetchCredits, buildCreditsJson } from "../lib/credits.js";
 import { syncAllModels, getSyncCache } from "../lib/model-sync.js";
+import { getUsageSummary } from "../lib/usage-log.js";
 
 const router: IRouter = Router();
 
@@ -143,6 +144,16 @@ router.get("/credits", async (req: Request, res: Response) => {
     return;
   }
   res.json(buildCreditsJson(result));
+});
+
+router.get("/usage", (req: Request, res: Response) => {
+  const auth = req.headers.authorization;
+  if (!auth?.startsWith("Bearer ") || !validateAdminToken(auth.slice(7))) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+  const limit = Math.min(parseInt(String(req.query.limit ?? "200"), 10) || 200, 1000);
+  res.json(getUsageSummary(limit));
 });
 
 export default router;
