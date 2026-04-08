@@ -540,7 +540,7 @@ function LoginPage({ C, t, onLogin }: { C: Record<string, string>; t: TType; onL
             fontSize: 12, color: C.textDim, fontWeight: 400,
             letterSpacing: "-0.01em",
           }}>
-            <span style={{ fontFamily: "'SF Mono','Fira Code',monospace", color: C.textDim }}>v4.1</span>
+            <span style={{ fontFamily: "'SF Mono','Fira Code',monospace", color: C.textDim }}>v4.2</span>
             <span>AI Proxy Portal</span>
           </span>
         </div>
@@ -1420,7 +1420,7 @@ export default function App() {
     return (
       <div style={{ fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif" }}>
         <div style={{ position: "fixed", top: 16, right: 20, display: "flex", alignItems: "center", gap: 12, zIndex: 100 }}>
-          <span style={{ fontSize: 11, color: C.textDim, fontFamily: "'SF Mono','Fira Code',monospace" }}>v4.1</span>
+          <span style={{ fontSize: 11, color: C.textDim, fontFamily: "'SF Mono','Fira Code',monospace" }}>v4.2</span>
           <LangToggle lang={lang} setLang={handleSetLang} C={C} />
         </div>
         <LoginPage C={C} t={t} onLogin={handleLogin} />
@@ -1481,7 +1481,7 @@ export default function App() {
 
         {/* Right controls */}
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <span style={{ fontFamily: "'SF Mono','Fira Code',monospace", fontSize: 11, color: C.textDim }}>v4.1</span>
+          <span style={{ fontFamily: "'SF Mono','Fira Code',monospace", fontSize: 11, color: C.textDim }}>v4.2</span>
           <StatusDot online={online} C={C} t={t} />
           <LangToggle lang={lang} setLang={handleSetLang} C={C} />
           <button
