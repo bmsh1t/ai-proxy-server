@@ -1007,28 +1007,26 @@ function ModelsTab({ C, t, onGoChat, adminToken }: { C: Record<string, string>; 
   const [syncData, setSyncData] = useState<SyncData | null>(null);
   const [syncError, setSyncError] = useState("");
   const [search, setSearch] = useState("");
-  const [activeView, setActiveView] = useState<"static" | "live">("static");
   const [filterProvider, setFilterProvider] = useState<string | null>(null);
 
-  const handleSync = async () => {
+  const loadModels = useCallback(async (force = false) => {
     setSyncing(true); setSyncError("");
     try {
-      const r = await fetch("/api/sync-models", { method: "POST", headers: { Authorization: `Bearer ${adminToken}`, "Content-Type": "application/json" } });
+      const method = force ? "POST" : "GET";
+      const headers: Record<string, string> = { Authorization: `Bearer ${adminToken}` };
+      if (force) headers["Content-Type"] = "application/json";
+      const r = await fetch("/api/sync-models", { method, headers });
       const d = await r.json() as SyncData;
-      if (!d.ok) throw new Error("Sync failed");
-      setSyncData(d); setActiveView("live");
+      if (d.ok) setSyncData(d);
+      else setSyncError("获取模型列表失败");
     } catch (e: unknown) { setSyncError(String(e)); }
     finally { setSyncing(false); }
-  };
+  }, [adminToken]);
+
+  useEffect(() => { void loadModels(); }, [loadModels]);
 
   const allLiveModels: SyncedModelEntry[] = syncData?.results.flatMap((r) => r.models) ?? [];
-  const allLiveFiltered = filterProvider ? allLiveModels.filter((m) => m.provider === filterProvider) : allLiveModels;
-  const filteredLive = search.trim()
-    ? allLiveFiltered.filter((m) => m.id.toLowerCase().includes(search.toLowerCase()) || (m.name ?? "").toLowerCase().includes(search.toLowerCase()))
-    : allLiveFiltered;
-
   const liveByProvider = syncData?.results ?? [];
-  const visibleLiveByProvider = filterProvider ? liveByProvider.filter((r) => r.provider === filterProvider) : liveByProvider;
 
   const orBySubprovider: Record<string, SyncedModelEntry[]> = {};
   const orResult = liveByProvider.find((r) => r.provider === "openrouter");
@@ -1037,6 +1035,20 @@ function ModelsTab({ C, t, onGoChat, adminToken }: { C: Record<string, string>; 
     (orBySubprovider[sub] = orBySubprovider[sub] ?? []).push(m);
   });
   const orSubProviders = Object.entries(orBySubprovider).sort((a, b) => b[1].length - a[1].length);
+
+  const filteredStaticGroups = filterProvider
+    ? staticGroups.filter((g) => g.provider.toLowerCase() === filterProvider)
+    : staticGroups;
+  const filteredLiveByProvider = filterProvider
+    ? liveByProvider.filter((r) => r.provider === filterProvider)
+    : liveByProvider;
+
+  const searchFiltered = search.trim()
+    ? allLiveModels.filter((m) =>
+        m.id.toLowerCase().includes(search.toLowerCase()) ||
+        (m.name ?? "").toLowerCase().includes(search.toLowerCase())
+      )
+    : null;
 
   const TestBtn = ({ modelId }: { modelId: string }) => (
     <button onClick={() => onGoChat(modelId)} style={{
@@ -1050,270 +1062,227 @@ function ModelsTab({ C, t, onGoChat, adminToken }: { C: Record<string, string>; 
   return (
     <div>
       {/* Toolbar */}
-      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24, flexWrap: "wrap" }}>
-        <button
-          onClick={handleSync} disabled={syncing}
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 22, flexWrap: "wrap" }}>
+        {/* Provider filter pills */}
+        <div style={{ display: "flex", gap: 7, flexWrap: "wrap", flex: 1 }}>
+          {([
+            { label: "全部",       key: null,         color: C.text },
+            { label: "OpenAI",     key: "openai",     color: C.blue },
+            { label: "Anthropic",  key: "anthropic",  color: C.orange },
+            { label: "Gemini",     key: "gemini",     color: C.emerald },
+            { label: "OpenRouter", key: "openrouter", color: C.purple },
+          ] as const).map((p) => {
+            const isActive = filterProvider === p.key;
+            return (
+              <button
+                key={String(p.key)}
+                onClick={() => setFilterProvider(isActive ? null : p.key)}
+                style={{
+                  background: isActive ? p.color : C.bgCard,
+                  border: "none", borderRadius: 20, padding: "6px 15px",
+                  fontSize: 12, fontWeight: 500,
+                  color: isActive ? "#fff" : p.key ? p.color : C.textMuted,
+                  cursor: "pointer", transition: "all 0.15s",
+                  boxShadow: isActive ? "none" : C.shadow,
+                  letterSpacing: "-0.01em",
+                }}
+              >{p.label}</button>
+            );
+          })}
+        </div>
+        {/* Search */}
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="搜索上游模型…"
           style={{
-            background: syncing ? C.bgInput : C.blue,
-            border: "none", borderRadius: 10, padding: "9px 18px",
-            fontSize: 13, fontWeight: 500, color: syncing ? C.textDim : "#fff",
-            cursor: syncing ? "not-allowed" : "pointer",
-            display: "flex", alignItems: "center", gap: 7,
-            transition: "all 0.18s", letterSpacing: "-0.01em",
+            background: C.bgCard, border: "none", borderRadius: 10,
+            padding: "7px 14px", fontSize: 13, color: C.text,
+            outline: "none", letterSpacing: "-0.01em",
+            boxShadow: C.shadow, width: 190,
           }}
-        >{syncing ? "同步中…" : "一键同步所有模型"}</button>
-
-        {syncData && (
-          <>
-            <div style={{ display: "flex", background: C.bgInput, borderRadius: 10, overflow: "hidden", padding: 3, gap: 2 }}>
-              {(["static", "live"] as const).map((v) => (
-                <button key={v} onClick={() => { setActiveView(v); setFilterProvider(null); }} style={{
-                  background: activeView === v ? C.bgCard : "transparent",
-                  border: "none", borderRadius: 7, padding: "5px 14px",
-                  fontSize: 12, fontWeight: activeView === v ? 500 : 400,
-                  color: activeView === v ? C.text : C.textMuted, cursor: "pointer",
-                  boxShadow: activeView === v ? C.shadow : "none",
-                  transition: "all 0.18s", letterSpacing: "-0.01em",
-                }}>
-                  {v === "static" ? `精选 ${ALL_MODELS.length}` : `实时 ${allLiveModels.length}`}
-                </button>
-              ))}
-            </div>
-            <span style={{ fontSize: 12, color: C.textDim, letterSpacing: "-0.01em" }}>
-              同步于 {new Date(syncData.syncedAt).toLocaleTimeString()}
-            </span>
-          </>
-        )}
-        {syncError && <span style={{ fontSize: 12, color: C.red }}>{syncError}</span>}
+        />
+        {/* Refresh */}
+        <button
+          onClick={() => void loadModels(true)}
+          disabled={syncing}
+          style={{
+            background: C.bgCard, border: "none", borderRadius: 10,
+            padding: "7px 14px", fontSize: 13, color: syncing ? C.textDim : C.blue,
+            cursor: syncing ? "not-allowed" : "pointer",
+            boxShadow: C.shadow, transition: "all 0.15s",
+            display: "flex", alignItems: "center", gap: 5, fontWeight: 500,
+            letterSpacing: "-0.01em",
+          }}
+        >{syncing ? "同步中…" : "↻ 刷新"}</button>
+        {syncData && <span style={{ fontSize: 11, color: C.textDim, letterSpacing: "-0.01em" }}>同步于 {new Date(syncData.syncedAt).toLocaleTimeString()}</span>}
+        {syncError && <span style={{ fontSize: 11, color: C.red }}>{syncError}</span>}
       </div>
 
-      {/* STATIC view */}
-      {activeView === "static" && (
-        <div>
-          {/* Filter pills */}
-          <div style={{ display: "flex", gap: 10, marginBottom: 28, flexWrap: "wrap" }}>
-            {[
-              { label: "全部", value: ALL_MODELS.length, color: C.text, key: null },
-              { label: "OpenAI",    value: OPENAI_MODELS.length,    color: C.blue,    key: "openai" },
-              { label: "Anthropic", value: ANTHROPIC_MODELS.length, color: C.orange,  key: "anthropic" },
-              { label: "Gemini",    value: GEMINI_MODELS.length,    color: C.emerald, key: "gemini" },
-              { label: "OpenRouter",value: OPENROUTER_MODELS.length,color: C.purple,  key: "openrouter" },
-            ].map((s) => {
-              const isActive = filterProvider === s.key;
-              return (
-                <div
-                  key={s.label}
-                  onClick={() => setFilterProvider(isActive ? null : s.key)}
-                  style={{
-                    background: C.bgCard,
-                    borderRadius: 12, padding: "14px 20px",
-                    display: "flex", flexDirection: "column", gap: 4, minWidth: 88,
-                    cursor: s.key ? "pointer" : "default",
-                    boxShadow: isActive ? `0 0 0 2px ${s.color}, ${C.shadow}` : C.shadow,
-                    transition: "box-shadow 0.18s",
-                  }}
-                >
-                  <div style={{ fontSize: 24, fontWeight: 600, color: s.color, fontFamily: "'SF Mono','Fira Code',monospace", letterSpacing: "-0.03em" }}>{s.value}</div>
-                  <div style={{ fontSize: 12, color: isActive ? s.color : C.textMuted, fontWeight: 500, letterSpacing: "-0.01em" }}>{s.label}</div>
-                </div>
-              );
-            })}
-          </div>
-
-          {(filterProvider ? staticGroups.filter((g) => g.provider.toLowerCase() === filterProvider) : staticGroups).map(({ provider, color, bg, models }) => (
-            <div key={provider} style={{ marginBottom: 36 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
-                <div style={{ width: 3, height: 20, borderRadius: 2, background: color, flexShrink: 0 }} />
-                <h3 style={{ margin: 0, fontSize: 17, fontWeight: 600, color: C.text, letterSpacing: "-0.025em" }}>{provider}</h3>
-                <span style={{ background: bg, color, borderRadius: 20, padding: "2px 10px", fontSize: 11, fontWeight: 600, letterSpacing: "0.02em" }}>{models.length} models</span>
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 10 }}>
-                {models.map((m) => (
-                  <div
-                    key={m.id}
-                    style={{ background: C.bgCard, borderRadius: 14, padding: "16px 18px", display: "flex", flexDirection: "column", gap: 10, boxShadow: C.shadow, transition: "box-shadow 0.18s" }}
-                    onMouseEnter={(e) => (e.currentTarget.style.boxShadow = C.shadowHover)}
-                    onMouseLeave={(e) => (e.currentTarget.style.boxShadow = C.shadow)}
-                  >
-                    <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
-                      <code style={{ fontSize: 13, fontFamily: "'SF Mono','Fira Code',monospace", color: C.text, fontWeight: 500, wordBreak: "break-all", flex: 1, letterSpacing: "-0.01em" }}>{m.id}</code>
-                      {m.note && <span style={{ background: bg, color, borderRadius: 5, padding: "2px 8px", fontSize: 10, fontWeight: 600, whiteSpace: "nowrap", flexShrink: 0, letterSpacing: "0.02em" }}>{m.note}</span>}
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <span style={{ fontSize: 11, color: C.textDim, fontWeight: 500 }}>Context</span>
-                      <span style={{ background: C.bgInput, borderRadius: 5, padding: "1px 8px", fontSize: 11, fontFamily: "'SF Mono','Fira Code',monospace", color: C.blue, fontWeight: 600 }}>{m.ctx}</span>
-                    </div>
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
-                      {m.caps.map((cap) => {
-                        const meta = CAP_LABEL[cap];
-                        return <span key={cap} style={{ fontSize: 10, color: meta.color, background: `${meta.color}15`, borderRadius: 5, padding: "2px 8px", fontWeight: 600, letterSpacing: "0.02em" }}>{meta.label}</span>;
-                      })}
-                    </div>
-                    <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 10, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
-                      <code style={{ fontSize: 10, color: C.textDim, fontFamily: "'SF Mono','Fira Code',monospace", flex: 1, minWidth: 0, wordBreak: "break-all" }}>{m.route}</code>
-                      <TestBtn modelId={m.id} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
+      {/* ── SECTION 1: 精选模型 ── */}
+      <div style={{ marginBottom: 44 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18 }}>
+          <h2 style={{ margin: 0, fontSize: 19, fontWeight: 700, color: C.text, letterSpacing: "-0.03em" }}>精选模型</h2>
+          <span style={{ background: C.bgInput, borderRadius: 20, padding: "2px 10px", fontSize: 11, fontWeight: 600, color: C.textMuted, letterSpacing: "0.01em" }}>{ALL_MODELS.length}</span>
         </div>
-      )}
-
-      {/* LIVE view */}
-      {activeView === "live" && syncData && (
-        <div>
-          {/* Provider filter pills */}
-          <div style={{ display: "flex", gap: 10, marginBottom: 20, flexWrap: "wrap" }}>
-            <div
-              onClick={() => setFilterProvider(null)}
-              style={{
-                background: C.bgCard, borderRadius: 12, padding: "14px 20px",
-                display: "flex", flexDirection: "column", gap: 4, minWidth: 88,
-                cursor: "pointer",
-                boxShadow: filterProvider === null ? `0 0 0 2px ${C.text}, ${C.shadow}` : C.shadow,
-                transition: "box-shadow 0.18s",
-              }}
-            >
-              <div style={{ fontSize: 24, fontWeight: 600, color: C.text, fontFamily: "'SF Mono','Fira Code',monospace", letterSpacing: "-0.03em" }}>{allLiveModels.length}</div>
-              <div style={{ fontSize: 12, color: filterProvider === null ? C.text : C.textMuted, fontWeight: 500, letterSpacing: "-0.01em" }}>合计</div>
+        {filteredStaticGroups.map(({ provider, color, bg, models }) => (
+          <div key={provider} style={{ marginBottom: 24 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+              <div style={{ width: 3, height: 18, borderRadius: 2, background: color, flexShrink: 0 }} />
+              <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600, color: C.text, letterSpacing: "-0.02em" }}>{provider}</h3>
+              <span style={{ background: bg, color, borderRadius: 20, padding: "2px 9px", fontSize: 11, fontWeight: 600 }}>{models.length}</span>
             </div>
-            {liveByProvider.map((r) => {
-              const color = providerColorOf(C, r.provider);
-              const label = r.provider.charAt(0).toUpperCase() + r.provider.slice(1);
-              const isLive = r.source === "live";
-              const isActive = filterProvider === r.provider;
-              return (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 8 }}>
+              {models.map((m) => (
                 <div
-                  key={r.provider}
-                  onClick={() => setFilterProvider(isActive ? null : r.provider)}
-                  style={{
-                    background: C.bgCard, borderRadius: 12, padding: "14px 20px",
-                    display: "flex", flexDirection: "column", gap: 4, minWidth: 88,
-                    cursor: "pointer",
-                    boxShadow: isActive ? `0 0 0 2px ${color}, ${C.shadow}` : C.shadow,
-                    transition: "box-shadow 0.18s",
-                  }}
+                  key={m.id}
+                  style={{ background: C.bgCard, borderRadius: 14, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 8, boxShadow: C.shadow, transition: "box-shadow 0.18s" }}
+                  onMouseEnter={(e) => (e.currentTarget.style.boxShadow = C.shadowHover)}
+                  onMouseLeave={(e) => (e.currentTarget.style.boxShadow = C.shadow)}
                 >
-                  <div style={{ fontSize: 24, fontWeight: 600, color, fontFamily: "'SF Mono','Fira Code',monospace", letterSpacing: "-0.03em" }}>{r.count}</div>
-                  <div style={{ fontSize: 12, color: isActive ? color : C.textMuted, fontWeight: 500, letterSpacing: "-0.01em", display: "flex", alignItems: "center", gap: 5 }}>
-                    {label}
-                    <span style={{
-                      fontSize: 9, fontWeight: 600, padding: "1px 5px", borderRadius: 3,
-                      background: isLive ? `${C.green}20` : C.bgInput,
-                      color: isLive ? C.green : C.textDim,
-                      letterSpacing: "0.04em",
-                    }}>{isLive ? "live" : "static"}</span>
+                  <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
+                    <code style={{ fontSize: 13, fontFamily: "'SF Mono','Fira Code',monospace", color: C.text, fontWeight: 500, wordBreak: "break-all", flex: 1, letterSpacing: "-0.01em" }}>{m.id}</code>
+                    {m.note && <span style={{ background: bg, color, borderRadius: 5, padding: "2px 8px", fontSize: 10, fontWeight: 600, whiteSpace: "nowrap", flexShrink: 0 }}>{m.note}</span>}
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <span style={{ fontSize: 11, color: C.textDim, fontWeight: 500 }}>Context</span>
+                    <span style={{ background: C.bgInput, borderRadius: 5, padding: "1px 8px", fontSize: 11, fontFamily: "'SF Mono','Fira Code',monospace", color: C.blue, fontWeight: 600 }}>{m.ctx}</span>
+                  </div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                    {m.caps.map((cap) => {
+                      const meta = CAP_LABEL[cap];
+                      return <span key={cap} style={{ fontSize: 10, color: meta.color, background: `${meta.color}15`, borderRadius: 5, padding: "2px 8px", fontWeight: 600 }}>{meta.label}</span>;
+                    })}
+                  </div>
+                  <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 8, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
+                    <code style={{ fontSize: 10, color: C.textDim, fontFamily: "'SF Mono','Fira Code',monospace", flex: 1, minWidth: 0, wordBreak: "break-all" }}>{m.route}</code>
+                    <TestBtn modelId={m.id} />
                   </div>
                 </div>
-              );
-            })}
-          </div>
-
-          {/* Search */}
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="搜索模型 ID 或名称…"
-            style={{
-              width: "100%", boxSizing: "border-box",
-              background: C.bgCard, border: "none", borderRadius: 10,
-              padding: "10px 16px", fontSize: 14, color: C.text,
-              marginBottom: 20, outline: "none", letterSpacing: "-0.01em",
-              boxShadow: C.shadow,
-            }}
-          />
-
-          {search.trim() ? (
-            <div>
-              <div style={{ fontSize: 12, color: C.textDim, marginBottom: 10, letterSpacing: "-0.01em" }}>找到 {filteredLive.length} 个匹配模型</div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                {filteredLive.map((m) => {
-                  const color = providerColorOf(C, m.provider);
-                  const bg = providerBgOf(C, m.provider);
-                  return (
-                    <div key={m.id} style={{ background: C.bgCard, borderRadius: 10, padding: "10px 14px", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", boxShadow: C.shadow }}>
-                      <span style={{ background: bg, color, borderRadius: 5, padding: "2px 8px", fontSize: 10, fontWeight: 600, whiteSpace: "nowrap", flexShrink: 0, letterSpacing: "0.03em" }}>{m.provider}</span>
-                      <code style={{ fontSize: 12, fontFamily: "'SF Mono','Fira Code',monospace", color: C.text, fontWeight: 500, flex: 1, minWidth: 0, wordBreak: "break-all", letterSpacing: "-0.01em" }}>{m.id}</code>
-                      {m.contextLength && <span style={{ fontSize: 11, color: C.blue, fontFamily: "'SF Mono','Fira Code',monospace", whiteSpace: "nowrap" }}>{fmtCtx(m.contextLength)}</span>}
-                      <TestBtn modelId={m.id} />
-                    </div>
-                  );
-                })}
-              </div>
+              ))}
             </div>
-          ) : (
-            <div>
-              {visibleLiveByProvider.map((result) => {
-                const color = providerColorOf(C, result.provider);
-                const bg = providerBgOf(C, result.provider);
-                const label = result.provider.charAt(0).toUpperCase() + result.provider.slice(1);
-                if (!result.ok) {
-                  return (
-                    <div key={result.provider} style={{ marginBottom: 20, background: C.bgCard, borderRadius: 12, padding: "14px 18px", boxShadow: C.shadow }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                        <div style={{ width: 3, height: 16, borderRadius: 2, background: C.red, flexShrink: 0 }} />
-                        <span style={{ fontSize: 15, fontWeight: 600, color: C.text, letterSpacing: "-0.025em" }}>{label}</span>
-                        <span style={{ fontSize: 12, color: C.red }}>获取失败: {result.error}</span>
-                      </div>
-                    </div>
-                  );
-                }
-                if (result.provider === "openrouter") {
-                  return (
-                    <div key="openrouter" style={{ marginBottom: 36 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
-                        <div style={{ width: 3, height: 20, borderRadius: 2, background: color, flexShrink: 0 }} />
-                        <h3 style={{ margin: 0, fontSize: 17, fontWeight: 600, color: C.text, letterSpacing: "-0.025em" }}>OpenRouter</h3>
-                        <span style={{ background: bg, color, borderRadius: 20, padding: "2px 10px", fontSize: 11, fontWeight: 600, letterSpacing: "0.02em" }}>{result.count} models</span>
-                        <span style={{ fontSize: 12, color: C.textDim }}>{orSubProviders.length} 家厂商</span>
-                      </div>
-                      {orSubProviders.map(([sub, models]) => (
-                        <div key={sub} style={{ marginBottom: 16 }}>
-                          <div style={{ fontSize: 11, fontWeight: 600, color, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 7, display: "flex", alignItems: "center", gap: 8 }}>
-                            <code style={{ fontFamily: "'SF Mono','Fira Code',monospace" }}>{sub}</code>
-                            <span style={{ background: bg, color, borderRadius: 10, padding: "1px 7px", fontSize: 10 }}>{models.length}</span>
-                          </div>
-                          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                            {models.map((m) => (
-                              <div key={m.id} style={{ background: C.bgCard, borderRadius: 9, padding: "8px 12px", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", boxShadow: C.shadow }}>
-                                <code style={{ fontSize: 12, fontFamily: "'SF Mono','Fira Code',monospace", color: C.text, flex: 1, minWidth: 0, wordBreak: "break-all", letterSpacing: "-0.01em" }}>{m.id}</code>
-                                {m.name && m.name !== m.id && <span style={{ fontSize: 11, color: C.textDim, flexShrink: 0 }}>{m.name}</span>}
-                                {m.contextLength && <span style={{ fontSize: 11, color: C.blue, fontFamily: "'SF Mono','Fira Code',monospace", whiteSpace: "nowrap", flexShrink: 0 }}>{fmtCtx(m.contextLength)}</span>}
-                                <TestBtn modelId={m.id} />
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  );
-                }
+          </div>
+        ))}
+      </div>
+
+      {/* ── SECTION 2: 上游全部模型 ── */}
+      <div>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18 }}>
+          <h2 style={{ margin: 0, fontSize: 19, fontWeight: 700, color: C.text, letterSpacing: "-0.03em" }}>上游全部模型</h2>
+          {syncData
+            ? <span style={{ background: C.bgInput, borderRadius: 20, padding: "2px 10px", fontSize: 11, fontWeight: 600, color: C.textMuted }}>{allLiveModels.length}</span>
+            : syncing
+              ? <span style={{ fontSize: 12, color: C.textDim }}>正在获取…</span>
+              : null}
+        </div>
+
+        {searchFiltered ? (
+          <div>
+            <div style={{ fontSize: 12, color: C.textDim, marginBottom: 10, letterSpacing: "-0.01em" }}>找到 {searchFiltered.length} 个匹配模型</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+              {searchFiltered.map((m) => {
+                const color = providerColorOf(C, m.provider);
+                const bg = providerBgOf(C, m.provider);
                 return (
-                  <div key={result.provider} style={{ marginBottom: 30 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
-                      <div style={{ width: 3, height: 20, borderRadius: 2, background: color, flexShrink: 0 }} />
-                      <h3 style={{ margin: 0, fontSize: 17, fontWeight: 600, color: C.text, letterSpacing: "-0.025em" }}>{label}</h3>
-                      <span style={{ background: bg, color, borderRadius: 20, padding: "2px 10px", fontSize: 11, fontWeight: 600, letterSpacing: "0.02em" }}>{result.count} models</span>
-                    </div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-                      {result.models.map((m) => (
-                        <div key={m.id} style={{ background: C.bgCard, borderRadius: 10, padding: "9px 14px", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", boxShadow: C.shadow }}>
-                          <code style={{ fontSize: 12, fontFamily: "'SF Mono','Fira Code',monospace", color: C.text, fontWeight: 500, flex: 1, minWidth: 0, wordBreak: "break-all", letterSpacing: "-0.01em" }}>{m.id}</code>
-                          {m.name && m.name !== m.id && <span style={{ fontSize: 11, color: C.textDim, flexShrink: 0 }}>{m.name}</span>}
-                          {m.contextLength && <span style={{ fontSize: 11, color: C.blue, fontFamily: "'SF Mono','Fira Code',monospace", whiteSpace: "nowrap" }}>{fmtCtx(m.contextLength)}</span>}
-                          <TestBtn modelId={m.id} />
-                        </div>
-                      ))}
-                    </div>
+                  <div key={m.id} style={{ background: C.bgCard, borderRadius: 10, padding: "9px 14px", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", boxShadow: C.shadow }}>
+                    <span style={{ background: bg, color, borderRadius: 5, padding: "2px 8px", fontSize: 10, fontWeight: 600, whiteSpace: "nowrap", flexShrink: 0 }}>{m.provider}</span>
+                    <code style={{ fontSize: 12, fontFamily: "'SF Mono','Fira Code',monospace", color: C.text, fontWeight: 500, flex: 1, minWidth: 0, wordBreak: "break-all" }}>{m.id}</code>
+                    {m.contextLength && <span style={{ fontSize: 11, color: C.blue, fontFamily: "'SF Mono','Fira Code',monospace", whiteSpace: "nowrap" }}>{fmtCtx(m.contextLength)}</span>}
+                    <TestBtn modelId={m.id} />
                   </div>
                 );
               })}
             </div>
-          )}
-        </div>
-      )}
+          </div>
+        ) : syncData ? (
+          <div>
+            {filteredLiveByProvider.map((result) => {
+              const color = providerColorOf(C, result.provider);
+              const bg = providerBgOf(C, result.provider);
+              const label = result.provider.charAt(0).toUpperCase() + result.provider.slice(1);
+              if (!result.ok) {
+                return (
+                  <div key={result.provider} style={{ marginBottom: 16, background: C.bgCard, borderRadius: 12, padding: "14px 18px", boxShadow: C.shadow }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <div style={{ width: 3, height: 16, borderRadius: 2, background: C.red }} />
+                      <span style={{ fontSize: 14, fontWeight: 600, color: C.text }}>{label}</span>
+                      <span style={{ fontSize: 12, color: C.red }}>获取失败: {result.error}</span>
+                    </div>
+                  </div>
+                );
+              }
+              const sourceBadge = (
+                <span style={{ background: result.source === "live" ? `${C.green}20` : C.bgInput, color: result.source === "live" ? C.green : C.textDim, fontSize: 9, fontWeight: 600, padding: "1px 5px", borderRadius: 3, letterSpacing: "0.04em" }}>
+                  {result.source === "live" ? "live" : "static"}
+                </span>
+              );
+              if (result.provider === "openrouter") {
+                return (
+                  <div key="openrouter" style={{ marginBottom: 36 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
+                      <div style={{ width: 3, height: 18, borderRadius: 2, background: color }} />
+                      <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600, color: C.text, letterSpacing: "-0.02em" }}>OpenRouter</h3>
+                      <span style={{ background: bg, color, borderRadius: 20, padding: "2px 9px", fontSize: 11, fontWeight: 600 }}>{result.count}</span>
+                      <span style={{ fontSize: 12, color: C.textDim }}>{orSubProviders.length} 家厂商</span>
+                      {sourceBadge}
+                    </div>
+                    {(filterProvider === "openrouter" ? [["openrouter", result.models] as [string, SyncedModelEntry[]]] : orSubProviders).map(([sub, models]) => (
+                      <div key={sub} style={{ marginBottom: 12 }}>
+                        {filterProvider !== "openrouter" && (
+                          <div style={{ fontSize: 11, fontWeight: 600, color, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6, display: "flex", alignItems: "center", gap: 8 }}>
+                            <code style={{ fontFamily: "'SF Mono','Fira Code',monospace" }}>{sub}</code>
+                            <span style={{ background: bg, color, borderRadius: 10, padding: "1px 7px", fontSize: 10 }}>{models.length}</span>
+                          </div>
+                        )}
+                        <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                          {models.map((m) => (
+                            <div key={m.id} style={{ background: C.bgCard, borderRadius: 9, padding: "7px 12px", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", boxShadow: C.shadow }}>
+                              <code style={{ fontSize: 12, fontFamily: "'SF Mono','Fira Code',monospace", color: C.text, flex: 1, minWidth: 0, wordBreak: "break-all" }}>{m.id}</code>
+                              {m.name && m.name !== m.id && <span style={{ fontSize: 11, color: C.textDim, flexShrink: 0 }}>{m.name}</span>}
+                              {m.contextLength && <span style={{ fontSize: 11, color: C.blue, fontFamily: "'SF Mono','Fira Code',monospace", whiteSpace: "nowrap" }}>{fmtCtx(m.contextLength)}</span>}
+                              <TestBtn modelId={m.id} />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              }
+              return (
+                <div key={result.provider} style={{ marginBottom: 28 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
+                    <div style={{ width: 3, height: 18, borderRadius: 2, background: color }} />
+                    <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600, color: C.text, letterSpacing: "-0.02em" }}>{label}</h3>
+                    <span style={{ background: bg, color, borderRadius: 20, padding: "2px 9px", fontSize: 11, fontWeight: 600 }}>{result.count}</span>
+                    {sourceBadge}
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                    {result.models.map((m) => (
+                      <div key={m.id} style={{ background: C.bgCard, borderRadius: 9, padding: "8px 13px", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", boxShadow: C.shadow }}>
+                        <code style={{ fontSize: 12, fontFamily: "'SF Mono','Fira Code',monospace", color: C.text, fontWeight: 500, flex: 1, minWidth: 0, wordBreak: "break-all" }}>{m.id}</code>
+                        {m.name && m.name !== m.id && <span style={{ fontSize: 11, color: C.textDim, flexShrink: 0 }}>{m.name}</span>}
+                        {m.contextLength && <span style={{ fontSize: 11, color: C.blue, fontFamily: "'SF Mono','Fira Code',monospace", whiteSpace: "nowrap" }}>{fmtCtx(m.contextLength)}</span>}
+                        <TestBtn modelId={m.id} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div style={{ background: C.bgCard, borderRadius: 12, padding: "36px 24px", textAlign: "center", boxShadow: C.shadow }}>
+            {syncError
+              ? <>
+                  <div style={{ fontSize: 13, color: C.red, marginBottom: 14 }}>{syncError}</div>
+                  <button onClick={() => void loadModels(true)} style={{ background: C.blue, border: "none", borderRadius: 8, padding: "8px 20px", fontSize: 13, color: "#fff", cursor: "pointer" }}>重试</button>
+                </>
+              : <div style={{ fontSize: 13, color: C.textDim }}>正在从上游获取模型列表…</div>
+            }
+          </div>
+        )}
+      </div>
     </div>
   );
 }

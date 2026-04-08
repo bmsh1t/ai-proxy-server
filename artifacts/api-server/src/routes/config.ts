@@ -97,16 +97,20 @@ router.post("/sync-models", async (req: Request, res: Response) => {
   }
 });
 
-router.get("/sync-models", (req: Request, res: Response) => {
+router.get("/sync-models", async (req: Request, res: Response) => {
   const auth = req.headers.authorization;
   if (!auth?.startsWith("Bearer ") || !validateAdminToken(auth.slice(7))) {
     res.status(401).json({ error: "Unauthorized" });
     return;
   }
-  const cache = getSyncCache();
+  let cache = getSyncCache();
   if (!cache) {
-    res.json({ ok: false, synced: false });
-    return;
+    try {
+      cache = await syncAllModels();
+    } catch (e: unknown) {
+      res.status(500).json({ ok: false, error: String(e) });
+      return;
+    }
   }
   res.json({
     ok: true,

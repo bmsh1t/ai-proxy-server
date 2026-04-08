@@ -1,5 +1,6 @@
 import app from "./app";
 import { logger } from "./lib/logger";
+import { syncAllModels } from "./lib/model-sync.js";
 
 const rawPort = process.env["PORT"];
 
@@ -22,4 +23,13 @@ app.listen(port, (err) => {
   }
 
   logger.info({ port }, "Server listening");
+
+  void syncAllModels()
+    .then((cache) => {
+      const counts = cache.results.map((r) => `${r.provider}:${r.models.length}`).join(", ");
+      logger.info({ counts }, "Startup model sync complete");
+    })
+    .catch((e: unknown) => {
+      logger.warn({ err: e }, "Startup model sync failed");
+    });
 });
