@@ -1234,8 +1234,10 @@ router.post("/chat/completions", requireAuth, async (req: Request, res: Response
     if (sampling.frequencyPenalty !== undefined) openAIParams.frequency_penalty = sampling.frequencyPenalty;
     const reasoningEffort = thinkingResolution ? buildOpenAIReasoningEffort(thinkingResolution) : undefined;
     if (reasoningEffort !== undefined) openAIParams.reasoning_effort = reasoningEffort;
-    // Fix 9: pass stream_options through to OpenAI natively
-    if (stream && streamOpts) (openAIParams as unknown as Record<string, unknown>).stream_options = streamOpts;
+    // Always request usage in stream so we can record token counts accurately
+    if (stream) {
+      (openAIParams as unknown as Record<string, unknown>).stream_options = { ...(streamOpts ?? {}), include_usage: true };
+    }
 
     const openai = getOpenAIClient();
     const startTs = Date.now();
@@ -1253,16 +1255,21 @@ router.post("/chat/completions", requireAuth, async (req: Request, res: Response
         const streamRes = await withRetry(() =>
           openai.chat.completions.create({ ...openAIParams, stream: true }, { signal: controller.signal })
         );
+        let streamPt = 0, streamCt = 0;
         for await (const chunk of streamRes) {
+          if ((chunk as { usage?: { prompt_tokens?: number; completion_tokens?: number } }).usage) {
+            const u = (chunk as { usage: { prompt_tokens?: number; completion_tokens?: number } }).usage;
+            streamPt = u.prompt_tokens ?? 0;
+            streamCt = u.completion_tokens ?? 0;
+          }
           res.write(`data: ${JSON.stringify(chunk)}\n\n`);
           (res as any).flush?.();
         }
         res.write("data: [DONE]\n\n");
         clear();
         const streamLatMs = Date.now() - startTs;
-        // Fix 11: log latency
-        req.log.info({ model, provider: "openai", latencyMs: streamLatMs, stream: true }, "OpenAI stream complete");
-        appendUsage({ timestamp: Date.now(), model, provider: "openai", promptTokens: 0, completionTokens: 0, totalTokens: 0, latencyMs: streamLatMs, cached: false });
+        req.log.info({ model, provider: "openai", latencyMs: streamLatMs, stream: true, promptTokens: streamPt, completionTokens: streamCt }, "OpenAI stream complete");
+        appendUsage({ timestamp: Date.now(), model, provider: "openai", promptTokens: streamPt, completionTokens: streamCt, totalTokens: streamPt + streamCt, latencyMs: streamLatMs, cached: false });
       } catch (streamErr) {
         req.log.error({ err: streamErr, model, provider: "openai" }, "OpenAI stream error");
         writeSseError(res, (streamErr as { message?: string }).message ?? "Stream error");
@@ -1833,19 +1840,25 @@ router.post("/chat/completions", requireAuth, async (req: Request, res: Response
           ...(presencePenalty !== undefined ? { presence_penalty: presencePenalty } : {}),
           ...(maxTokens !== undefined ? { max_tokens: maxTokens } : {}),
           ...(stop != null ? { stop } : {}),
-          ...(streamOpts ? { stream_options: streamOpts } : {}),
+          stream_options: { ...(streamOpts ?? {}), include_usage: true },
         });
         res.setHeader("Content-Type", "text/event-stream");
         res.setHeader("Cache-Control", "no-cache");
         res.setHeader("Connection", "keep-alive");
+        let orStreamPt = 0, orStreamCt = 0;
         for await (const chunk of orStream) {
+          if ((chunk as { usage?: { prompt_tokens?: number; completion_tokens?: number } }).usage) {
+            const u = (chunk as { usage: { prompt_tokens?: number; completion_tokens?: number } }).usage;
+            orStreamPt = u.prompt_tokens ?? 0;
+            orStreamCt = u.completion_tokens ?? 0;
+          }
           res.write(`data: ${JSON.stringify(chunk)}\n\n`);
         }
         res.write("data: [DONE]\n\n");
         res.end();
         const orStreamLatMs = Date.now() - orStartTs;
-        req.log.info({ model, provider: "openrouter", latencyMs: orStreamLatMs, stream: true }, "OpenRouter stream complete");
-        appendUsage({ timestamp: Date.now(), model, provider: "openrouter", promptTokens: 0, completionTokens: 0, totalTokens: 0, latencyMs: orStreamLatMs, cached: false });
+        req.log.info({ model, provider: "openrouter", latencyMs: orStreamLatMs, stream: true, promptTokens: orStreamPt, completionTokens: orStreamCt }, "OpenRouter stream complete");
+        appendUsage({ timestamp: Date.now(), model, provider: "openrouter", promptTokens: orStreamPt, completionTokens: orStreamCt, totalTokens: orStreamPt + orStreamCt, latencyMs: orStreamLatMs, cached: false });
       } else {
         const result = await client.chat.completions.create({
           model,

@@ -3,7 +3,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const LOG_FILE = path.join(__dirname, "../../usage-log.jsonl");
+const LOG_FILE = path.join(__dirname, "../../usage-log.json");
 const MAX_ENTRIES = 1000;
 
 export interface UsageEntry {
