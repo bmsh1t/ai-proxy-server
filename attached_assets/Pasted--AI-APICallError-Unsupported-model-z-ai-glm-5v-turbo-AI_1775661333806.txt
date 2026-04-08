@@ -1,0 +1,66 @@
+错误名称: AI_APICallError
+错误信息: Unsupported model: z-ai/glm-5v-turbo
+堆栈信息: AI_APICallError: Unsupported model: z-ai/glm-5v-turbo
+    at file:///Applications/Cherry%20Studio.app/Contents/Resources/app.asar/out/renderer/assets/dist-CUjkTMRK.js:2082:11
+    at async postToApi (file:///Applications/Cherry%20Studio.app/Contents/Resources/app.asar/out/renderer/assets/dist-CUjkTMRK.js:1977:24)
+    at async AnthropicMessagesLanguageModel.doStream (file:///Applications/Cherry%20Studio.app/Contents/Resources/app.asar/out/renderer/assets/dist-BL0W2lvA.js:2622:48)
+    at async fn (file:///Applications/Cherry%20Studio.app/Contents/Resources/app.asar/out/renderer/assets/store-BDFHZEb3.js:47480:17)
+    at async file:///Applications/Cherry%20Studio.app/Contents/Resources/app.asar/out/renderer/assets/store-BDFHZEb3.js:43834:19
+    at async _retryWithExponentialBackoff (file:///Applications/Cherry%20Studio.app/Contents/Resources/app.asar/out/renderer/assets/store-BDFHZEb3.js:43997:10)
+    at async streamStep (file:///Applications/Cherry%20Studio.app/Contents/Resources/app.asar/out/renderer/assets/store-BDFHZEb3.js:47449:109)
+    at async fn (file:///Applications/Cherry%20Studio.app/Contents/Resources/app.asar/out/renderer/assets/store-BDFHZEb3.js:47755:5)
+    at async file:///Applications/Cherry%20Studio.app/Contents/Resources/app.asar/out/renderer/assets/store-BDFHZEb3.js:43834:19
+错误原因: "[undefined]"
+状态码: 400
+请求路径: https://api-integrator-llorenteeduluis.replit.app/v1/messages
+请求体: {
+  "model": "z-ai/glm-5v-turbo",
+  "max_tokens": 4096,
+  "temperature": "[undefined]",
+  "top_k": "[undefined]",
+  "top_p": "[undefined]",
+  "stop_sequences": "[undefined]",
+  "system": "[undefined]",
+  "messages": [
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "hi",
+          "cache_control": "[undefined]"
+        }
+      ]
+    }
+  ],
+  "tools": "[undefined]",
+  "tool_choice": "[undefined]",
+  "stream": true
+}
+响应首部: {
+  "access-control-allow-origin": "*",
+  "alt-svc": "h3=\":443\"; ma=2592000",
+  "content-length": "106",
+  "content-type": "application/json; charset=utf-8",
+  "date": "Wed, 08 Apr 2026 15:15:03 GMT",
+  "etag": "W/\"6a-7JUQ43sj1h6kgEcze/OgZTHYaAo\"",
+  "server": "Google Frontend",
+  "strict-transport-security": "max-age=63072000; includeSubDomains",
+  "via": "1.1 google",
+  "x-cloud-trace-context": "ce77cff29db5a2ad72350ac86e085f2b;o=1",
+  "x-powered-by": "Express"
+}
+响应内容: {
+  "type": "error",
+  "error": {
+    "type": "invalid_request_error",
+    "message": "Unsupported model: z-ai/glm-5v-turbo"
+  }
+}
+数据: {
+  "type": "error",
+  "error": {
+    "type": "invalid_request_error",
+    "message": "Unsupported model: z-ai/glm-5v-turbo"
+  }
+}
