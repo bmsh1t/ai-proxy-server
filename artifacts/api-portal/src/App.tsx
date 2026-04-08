@@ -101,7 +101,7 @@ const T_CN = {
   ],
   selectModel: "选择模型",
   generating: "生成中...",
-  clearChat: "清空",
+  clearChat: "清空", downloadImage: "下载图片",
   chatEmpty: "发送消息开始测试",
   chatEmptySub: (m: string) => `使用 ${m} 模型，通过本代理路由`,
   chatYou: "你",
@@ -195,7 +195,7 @@ const T_EN = {
   ],
   selectModel: "Select Model",
   generating: "Generating...",
-  clearChat: "Clear",
+  clearChat: "Clear", downloadImage: "Download",
   chatEmpty: "Send a message to start",
   chatEmptySub: (m: string) => `Using ${m} · routed through this proxy`,
   chatYou: "You",
@@ -328,7 +328,8 @@ const ENDPOINTS = [
   { method: "POST", path: "/v1/messages",          label: "Messages",          type: "Anthropic", desc: "Anthropic native Messages API. Supports streaming, tool use, and all model routing with Thinking adaptation" },
 ];
 
-type ChatMessage = { role: "user" | "assistant"; content: string };
+type ContentPart = { type: "text"; text: string } | { type: "image_url"; image_url: { url: string } };
+type ChatMessage = { role: "user" | "assistant"; content: string; images?: string[] };
 
 /* ─────────────────────────────────────────────
    Reusable micro-components
@@ -588,54 +589,86 @@ function ChatTab({ C, t, proxyApiKey, adminToken, onKeyRefresh, onForceRelogin, 
 
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
+  const isImageGenModel = (m: string) => /image/i.test(m);
+
   const sendMessage = async () => {
     if (!input.trim() || streaming) return;
     const userMsg: ChatMessage = { role: "user", content: input.trim() };
     const newMessages = [...messages, userMsg];
     setMessages(newMessages);
     setInput(""); setError(""); setStreaming(true);
+
+    const imageGen = isImageGenModel(selectedModel);
     setMessages([...newMessages, { role: "assistant", content: "" }]);
 
-    const doFetch = async (key: string): Promise<Response> => fetch("/v1/chat/completions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${key}` },
-      body: JSON.stringify({ model: selectedModel, messages: newMessages, stream: true }),
-    });
+    const handleUnauth = async (): Promise<boolean> => {
+      const settingsRes = await fetch("/api/config/settings", { headers: { "Authorization": `Bearer ${adminToken}` } });
+      if (settingsRes.ok) {
+        const data = await settingsRes.json() as { proxyApiKey: string };
+        onKeyRefresh(data.proxyApiKey); proxyApiKeyRef.current = data.proxyApiKey;
+        setError(t.chatUnauth); setMessages(newMessages); setStreaming(false); return true;
+      } else {
+        setError(t.chatUnauthFail); setMessages(newMessages); setStreaming(false);
+        setTimeout(onForceRelogin, 1500); return true;
+      }
+    };
 
     try {
-      let res = await doFetch(proxyApiKeyRef.current);
-      if (res.status === 401) {
-        const settingsRes = await fetch("/api/config/settings", { headers: { "Authorization": `Bearer ${adminToken}` } });
-        if (settingsRes.ok) {
-          const data = await settingsRes.json() as { proxyApiKey: string };
-          onKeyRefresh(data.proxyApiKey); proxyApiKeyRef.current = data.proxyApiKey;
-          setError(t.chatUnauth); setMessages(newMessages); setStreaming(false); return;
-        } else {
-          setError(t.chatUnauthFail); setMessages(newMessages); setStreaming(false);
-          setTimeout(onForceRelogin, 1500); return;
+      if (imageGen) {
+        // Non-streaming path for image generation models
+        const res = await fetch("/v1/chat/completions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${proxyApiKeyRef.current}` },
+          body: JSON.stringify({ model: selectedModel, messages: newMessages, stream: false }),
+        });
+        if (res.status === 401) { await handleUnauth(); return; }
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({})) as { error?: { message?: string } };
+          setError(errData?.error?.message ?? `HTTP ${res.status}`);
+          setMessages(newMessages); setStreaming(false); return;
         }
-      }
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({})) as { error?: { message?: string } };
-        setError(errData?.error?.message ?? `HTTP ${res.status}`);
-        setMessages(newMessages); setStreaming(false); return;
-      }
-      const reader = res.body?.getReader();
-      const decoder = new TextDecoder();
-      if (!reader) throw new Error("No response body");
-      let accumulated = ""; let sseBuffer = "";
-      while (true) {
-        const { done, value } = await reader.read(); if (done) break;
-        sseBuffer += decoder.decode(value, { stream: true });
-        const lines = sseBuffer.split("\n"); sseBuffer = lines.pop() ?? "";
-        for (const line of lines) {
-          if (!line.startsWith("data: ")) continue;
-          const data = line.slice(6).trim(); if (data === "[DONE]") continue;
-          try {
-            const parsed = JSON.parse(data) as { choices?: { delta?: { content?: string } }[] };
-            const delta = parsed.choices?.[0]?.delta?.content ?? "";
-            accumulated += delta; setMessages([...newMessages, { role: "assistant", content: accumulated }]);
-          } catch { /* ignore partial SSE */ }
+        const data = await res.json() as { choices?: { message?: { content?: string | ContentPart[] } }[] };
+        const raw = data.choices?.[0]?.message?.content ?? "";
+        let text = ""; const imgs: string[] = [];
+        if (typeof raw === "string") {
+          text = raw;
+        } else if (Array.isArray(raw)) {
+          for (const part of raw as ContentPart[]) {
+            if (part.type === "text") text += part.text;
+            else if (part.type === "image_url") imgs.push(part.image_url.url);
+          }
+        }
+        setMessages([...newMessages, { role: "assistant", content: text, images: imgs }]);
+      } else {
+        // Streaming path for text models
+        const res = await fetch("/v1/chat/completions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${proxyApiKeyRef.current}` },
+          body: JSON.stringify({ model: selectedModel, messages: newMessages, stream: true }),
+        });
+        if (res.status === 401) { await handleUnauth(); return; }
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({})) as { error?: { message?: string } };
+          setError(errData?.error?.message ?? `HTTP ${res.status}`);
+          setMessages(newMessages); setStreaming(false); return;
+        }
+        const reader = res.body?.getReader();
+        const decoder = new TextDecoder();
+        if (!reader) throw new Error("No response body");
+        let accumulated = ""; let sseBuffer = "";
+        while (true) {
+          const { done, value } = await reader.read(); if (done) break;
+          sseBuffer += decoder.decode(value, { stream: true });
+          const lines = sseBuffer.split("\n"); sseBuffer = lines.pop() ?? "";
+          for (const line of lines) {
+            if (!line.startsWith("data: ")) continue;
+            const chunk = line.slice(6).trim(); if (chunk === "[DONE]") continue;
+            try {
+              const parsed = JSON.parse(chunk) as { choices?: { delta?: { content?: string } }[] };
+              const delta = parsed.choices?.[0]?.delta?.content ?? "";
+              accumulated += delta; setMessages([...newMessages, { role: "assistant", content: accumulated }]);
+            } catch { /* ignore partial SSE */ }
+          }
         }
       }
     } catch (e) {
@@ -756,26 +789,59 @@ function ChatTab({ C, t, proxyApiKey, adminToken, onKeyRefresh, onForceRelogin, 
                 <div style={{ fontSize: 12, color: C.textDim }}>{t.chatEmptySub(selectedModel)}</div>
               </div>
             )}
-            {messages.map((msg, i) => (
-              <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: msg.role === "user" ? "flex-end" : "flex-start" }}>
-                <div style={{
-                  fontSize: 11, color: C.textDim, marginBottom: 4,
-                  fontWeight: 500, letterSpacing: "-0.01em",
-                }}>{msg.role === "user" ? t.chatYou : selectedModel}</div>
-                <div style={{
-                  maxWidth: "80%", padding: "10px 14px", borderRadius: 14,
-                  fontSize: 14, lineHeight: 1.65,
-                  background: msg.role === "user" ? C.blue : C.bgInput,
-                  color: msg.role === "user" ? "#fff" : C.text,
-                  whiteSpace: "pre-wrap", wordBreak: "break-word",
-                  letterSpacing: "-0.01em",
-                }}>
-                  {msg.content || (streaming && i === messages.length - 1
-                    ? <span style={{ display: "inline-block", width: 2, height: 15, background: C.blue, borderRadius: 1, animation: "blink 1s step-start infinite", verticalAlign: "middle" }} />
-                    : "")}
+            {messages.map((msg, i) => {
+              const isLast = i === messages.length - 1;
+              const isLoadingImageGen = streaming && isLast && msg.role === "assistant" && isImageGenModel(selectedModel);
+              return (
+                <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: msg.role === "user" ? "flex-end" : "flex-start" }}>
+                  <div style={{
+                    fontSize: 11, color: C.textDim, marginBottom: 4,
+                    fontWeight: 500, letterSpacing: "-0.01em",
+                  }}>{msg.role === "user" ? t.chatYou : selectedModel}</div>
+                  <div style={{
+                    maxWidth: msg.images?.length ? "90%" : "80%",
+                    padding: "10px 14px", borderRadius: 14,
+                    fontSize: 14, lineHeight: 1.65,
+                    background: msg.role === "user" ? C.blue : C.bgInput,
+                    color: msg.role === "user" ? "#fff" : C.text,
+                    whiteSpace: "pre-wrap", wordBreak: "break-word",
+                    letterSpacing: "-0.01em",
+                  }}>
+                    {isLoadingImageGen
+                      ? <span style={{ display: "flex", alignItems: "center", gap: 8, color: C.textDim, fontSize: 13 }}>
+                          <span style={{ display: "inline-block", width: 2, height: 15, background: C.blue, borderRadius: 1, animation: "blink 1s step-start infinite", verticalAlign: "middle" }} />
+                          {t.generating}
+                        </span>
+                      : <>
+                          {msg.content && <div>{msg.content}</div>}
+                          {msg.images?.map((url, j) => (
+                            <div key={j} style={{ marginTop: msg.content ? 10 : 0 }}>
+                              <img
+                                src={url}
+                                alt={`generated-${j}`}
+                                style={{ maxWidth: "100%", borderRadius: 10, display: "block" }}
+                              />
+                              <a
+                                href={url}
+                                download={`image-${j + 1}.png`}
+                                style={{
+                                  display: "inline-block", marginTop: 6,
+                                  fontSize: 11, color: C.blue, textDecoration: "none",
+                                  letterSpacing: "-0.01em",
+                                }}
+                              >↓ {t.downloadImage}</a>
+                            </div>
+                          ))}
+                          {!msg.content && !msg.images?.length && !streaming && ""}
+                          {!msg.content && !msg.images?.length && streaming && isLast && msg.role === "assistant" && !isImageGenModel(selectedModel)
+                            ? <span style={{ display: "inline-block", width: 2, height: 15, background: C.blue, borderRadius: 1, animation: "blink 1s step-start infinite", verticalAlign: "middle" }} />
+                            : null}
+                        </>
+                    }
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
             {error && (
               <div style={{
                 background: `${C.red}10`, borderRadius: 10, padding: "10px 14px",
