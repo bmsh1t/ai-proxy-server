@@ -236,13 +236,39 @@ const GEMINI_MODELS: ModelMeta[] = [
   { id: "gemini-2.5-pro",   note: "Most capable",      ctx: "2M",  caps: ["stream","tools","vision","json","reasoning"], route: "/v1/chat/completions · /v1/messages" },
   { id: "gemini-2.5-flash", note: "Recommended",       ctx: "1M",  caps: ["stream","tools","vision","json","reasoning"], route: "/v1/chat/completions · /v1/messages" },
 ];
+const OPENROUTER_MODELS: ModelMeta[] = [
+  // ── Meta Llama ──
+  { id: "meta-llama/llama-4-maverick", note: "Recommended", ctx: "1M",   caps: ["stream","tools","vision","json"], route: "/v1/chat/completions" },
+  { id: "meta-llama/llama-4-scout",                          ctx: "512K", caps: ["stream","tools","vision","json"], route: "/v1/chat/completions" },
+  { id: "meta-llama/llama-3.3-70b-instruct",                ctx: "128K", caps: ["stream","tools","json"],          route: "/v1/chat/completions" },
+  { id: "meta-llama/llama-3.1-8b-instruct",  note: "Fast",  ctx: "128K", caps: ["stream","tools","json"],          route: "/v1/chat/completions" },
+  // ── DeepSeek ──
+  { id: "deepseek/deepseek-r1",           note: "Reasoning", ctx: "128K", caps: ["stream","reasoning"],            route: "/v1/chat/completions" },
+  { id: "deepseek/deepseek-chat-v3-0324",                    ctx: "64K",  caps: ["stream","tools","json"],          route: "/v1/chat/completions" },
+  // ── xAI Grok ──
+  { id: "x-ai/grok-3",      note: "Most capable", ctx: "131K", caps: ["stream","tools","json"],                   route: "/v1/chat/completions" },
+  { id: "x-ai/grok-3-mini", note: "Fast",         ctx: "131K", caps: ["stream","tools","json"],                   route: "/v1/chat/completions" },
+  // ── Mistral ──
+  { id: "mistralai/mistral-large-2411",                          ctx: "128K", caps: ["stream","tools","json"],     route: "/v1/chat/completions" },
+  { id: "mistralai/mistral-small-3.1-24b-instruct",              ctx: "128K", caps: ["stream","tools","vision","json"], route: "/v1/chat/completions" },
+  { id: "mistralai/codestral-2501",              note: "Code",  ctx: "256K", caps: ["stream","json"],             route: "/v1/chat/completions" },
+  // ── Qwen ──
+  { id: "qwen/qwen3-235b-a22b",  note: "Most capable", ctx: "40K",  caps: ["stream","tools","json"],              route: "/v1/chat/completions" },
+  { id: "qwen/qwen-2.5-72b-instruct",                   ctx: "131K", caps: ["stream","tools","json"],             route: "/v1/chat/completions" },
+  // ── Microsoft ──
+  { id: "microsoft/phi-4",                                ctx: "16K",  caps: ["stream","tools","json"],            route: "/v1/chat/completions" },
+  { id: "microsoft/phi-4-multimodal-instruct",            ctx: "128K", caps: ["stream","tools","vision","json"],  route: "/v1/chat/completions" },
+  // ── NVIDIA ──
+  { id: "nvidia/llama-3.1-nemotron-70b-instruct",         ctx: "128K", caps: ["stream","tools","json"],           route: "/v1/chat/completions" },
+];
 const ALL_MODELS = [
   ...OPENAI_MODELS.map((m) => ({ ...m, provider: "OpenAI" as const })),
   ...ANTHROPIC_MODELS.map((m) => ({ ...m, provider: "Anthropic" as const })),
   ...GEMINI_MODELS.map((m) => ({ ...m, provider: "Gemini" as const })),
+  ...OPENROUTER_MODELS.map((m) => ({ ...m, provider: "OpenRouter" as const })),
 ];
 const ENDPOINTS = [
-  { method: "GET", path: "/v1/models", label: "List Models", type: "Both", desc: "Returns all available model IDs across OpenAI, Anthropic and Gemini" },
+  { method: "GET", path: "/v1/models", label: "List Models", type: "Both", desc: "Returns all available model IDs across OpenAI, Anthropic, Gemini and OpenRouter" },
   { method: "GET", path: "/v1/credits", label: "Credits Balance", type: "Both", desc: "Query OpenAI account credits balance and this month's usage. Auth with proxyApiKey Bearer token." },
   { method: "POST", path: "/v1/chat/completions", label: "Chat Completions", type: "OpenAI", desc: "OpenAI-compatible chat API. Supports streaming, tool calls, and all models via prefix routing" },
   { method: "POST", path: "/v1/responses", label: "Responses API", type: "Responses", desc: "OpenAI Responses API pass-through with suffix reasoning override and reasoning.effort normalization. Streaming supported." },
@@ -394,8 +420,8 @@ function ChatTab({ C, t, proxyApiKey, adminToken, onKeyRefresh, onForceRelogin, 
   const proxyApiKeyRef = useRef(proxyApiKey);
   useEffect(() => { proxyApiKeyRef.current = proxyApiKey; }, [proxyApiKey]);
 
-  const providerColor = (p: string) => p === "OpenAI" ? C.blue : p === "Anthropic" ? C.orange : C.emerald;
-  const providerBg = (p: string) => p === "OpenAI" ? C.blueDark : p === "Anthropic" ? C.orangeDark : C.emeraldDark;
+  const providerColor = (p: string) => p === "OpenAI" ? C.blue : p === "Anthropic" ? C.orange : p === "OpenRouter" ? C.purple : C.emerald;
+  const providerBg = (p: string) => p === "OpenAI" ? C.blueDark : p === "Anthropic" ? C.orangeDark : p === "OpenRouter" ? C.purpleDark : C.emeraldDark;
 
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
@@ -482,7 +508,7 @@ function ChatTab({ C, t, proxyApiKey, adminToken, onKeyRefresh, onForceRelogin, 
     <div style={{ display: "flex", gap: 16, height: "calc(100vh - 130px)", minHeight: 500 }}>
       <div style={{ width: 210, flexShrink: 0, display: "flex", flexDirection: "column", gap: 4, overflowY: "auto" }}>
         <div style={{ fontSize: 11, fontWeight: 700, color: C.textDim, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 6 }}>{t.selectModel}</div>
-        {(["OpenAI", "Anthropic", "Gemini"] as const).map((provider) => (
+        {(["OpenAI", "Anthropic", "Gemini", "OpenRouter"] as const).map((provider) => (
           <div key={provider}>
             <div style={{ fontSize: 11, fontWeight: 700, color: providerColor(provider), textTransform: "uppercase", letterSpacing: "0.06em", padding: "4px 0", marginTop: 4 }}>{provider}</div>
             {ALL_MODELS.filter((m) => m.provider === provider).map((m) => (
@@ -671,9 +697,10 @@ const CAP_LABEL: Record<Cap, { label: string; color: string }> = {
 
 function ModelsTab({ C, t, onGoChat }: { C: Record<string, string>; t: TType; onGoChat: (modelId: string) => void }) {
   const groups: { provider: string; color: string; bg: string; models: ModelMeta[] }[] = [
-    { provider: "OpenAI",   color: C.blue,   bg: C.blueDark,   models: OPENAI_MODELS },
-    { provider: "Anthropic",color: C.orange, bg: C.orangeDark, models: ANTHROPIC_MODELS },
-    { provider: "Gemini",   color: C.emerald,bg: C.emeraldDark,models: GEMINI_MODELS },
+    { provider: "OpenAI",     color: C.blue,     bg: C.blueDark,     models: OPENAI_MODELS },
+    { provider: "Anthropic",  color: C.orange,   bg: C.orangeDark,   models: ANTHROPIC_MODELS },
+    { provider: "Gemini",     color: C.emerald,  bg: C.emeraldDark,  models: GEMINI_MODELS },
+    { provider: "OpenRouter", color: C.purple,   bg: C.purpleDark,   models: OPENROUTER_MODELS },
   ];
   const total = ALL_MODELS.length;
 
@@ -682,10 +709,11 @@ function ModelsTab({ C, t, onGoChat }: { C: Record<string, string>; t: TType; on
       {/* Stats bar */}
       <div style={{ display: "flex", gap: 12, marginBottom: 28, flexWrap: "wrap" }}>
         {[
-          { label: t.tabModels, value: `${total}`, color: C.text },
-          { label: "OpenAI",    value: `${OPENAI_MODELS.length}`,    color: C.blue },
-          { label: "Anthropic", value: `${ANTHROPIC_MODELS.length}`, color: C.orange },
-          { label: "Gemini",    value: `${GEMINI_MODELS.length}`,    color: C.emerald },
+          { label: t.tabModels,   value: `${total}`,                    color: C.text },
+          { label: "OpenAI",      value: `${OPENAI_MODELS.length}`,      color: C.blue },
+          { label: "Anthropic",   value: `${ANTHROPIC_MODELS.length}`,   color: C.orange },
+          { label: "Gemini",      value: `${GEMINI_MODELS.length}`,      color: C.emerald },
+          { label: "OpenRouter",  value: `${OPENROUTER_MODELS.length}`,  color: C.purple },
         ].map((s) => (
           <div key={s.label} style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 10, padding: "12px 20px", display: "flex", flexDirection: "column", gap: 4, minWidth: 90 }}>
             <div style={{ fontSize: 22, fontWeight: 800, color: s.color, fontFamily: "monospace" }}>{s.value}</div>

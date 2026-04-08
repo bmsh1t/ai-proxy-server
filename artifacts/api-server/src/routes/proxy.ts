@@ -65,6 +65,21 @@ function getGeminiClient(): GoogleGenAI {
   return _gemini;
 }
 
+let _openrouter: OpenAI | null = null;
+function getOpenRouterClient(): OpenAI {
+  if (!_openrouter) {
+    _openrouter = new OpenAI({
+      baseURL: process.env.AI_INTEGRATIONS_OPENROUTER_BASE_URL,
+      apiKey: process.env.AI_INTEGRATIONS_OPENROUTER_API_KEY,
+      defaultHeaders: {
+        "HTTP-Referer": process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : "https://api-proxy.local",
+        "X-Title": "AI Reverse Proxy",
+      },
+    });
+  }
+  return _openrouter;
+}
+
 // ─── Fix 10: In-memory rate limiter (120 req/min per API key) ─────────────────
 
 const RATE_LIMIT_RPM = 120;
@@ -493,6 +508,10 @@ function isAnthropicModel(model: string): boolean {
 
 function isGeminiModel(model: string): boolean {
   return stripThinkingModelSuffix(model).startsWith("gemini-");
+}
+
+function isOpenRouterModel(model: string): boolean {
+  return model.includes("/");
 }
 
 function shouldUseOpenAIMaxCompletionTokens(model: string): boolean {
@@ -1135,6 +1154,7 @@ router.post("/chat/completions", requireAuth, async (req: Request, res: Response
   const targetProvider = isOpenAIModel(model) ? "openai"
     : isAnthropicModel(model) ? "anthropic"
     : isGeminiModel(model) ? "gemini"
+    : isOpenRouterModel(model) ? "openrouter"
     : null;
   const visionSummary = summarizeVisionInput("chat", body);
   const hasVisionInput = requestHasVisionInput("chat", body);
@@ -1753,6 +1773,57 @@ router.post("/chat/completions", requireAuth, async (req: Request, res: Response
       res.json(result);
     } catch (err: unknown) {
       req.log.error({ err, model, provider: "gemini" }, "Gemini error");
+      sendOpenAIProviderError(res, err);
+    }
+    return;
+  }
+
+  // ─── OpenRouter (OpenAI-compatible, any model with "/" in name) ───────────
+  if (isOpenRouterModel(model)) {
+    const client = getOpenRouterClient();
+    const { temperature, topP, frequencyPenalty, presencePenalty } = normalizeSamplingParams(samplingInput, "openai");
+    try {
+      if (stream) {
+        const orStream = await client.chat.completions.create({
+          model,
+          messages: rawMessages,
+          stream: true,
+          ...(tools ? { tools } : {}),
+          ...(toolChoice ? { tool_choice: toolChoice } : {}),
+          ...(temperature !== undefined ? { temperature } : {}),
+          ...(topP !== undefined ? { top_p: topP } : {}),
+          ...(frequencyPenalty !== undefined ? { frequency_penalty: frequencyPenalty } : {}),
+          ...(presencePenalty !== undefined ? { presence_penalty: presencePenalty } : {}),
+          ...(maxTokens !== undefined ? { max_tokens: maxTokens } : {}),
+          ...(stop != null ? { stop } : {}),
+          ...(streamOpts ? { stream_options: streamOpts } : {}),
+        });
+        res.setHeader("Content-Type", "text/event-stream");
+        res.setHeader("Cache-Control", "no-cache");
+        res.setHeader("Connection", "keep-alive");
+        for await (const chunk of orStream) {
+          res.write(`data: ${JSON.stringify(chunk)}\n\n`);
+        }
+        res.write("data: [DONE]\n\n");
+        res.end();
+      } else {
+        const result = await client.chat.completions.create({
+          model,
+          messages: rawMessages,
+          stream: false,
+          ...(tools ? { tools } : {}),
+          ...(toolChoice ? { tool_choice: toolChoice } : {}),
+          ...(temperature !== undefined ? { temperature } : {}),
+          ...(topP !== undefined ? { top_p: topP } : {}),
+          ...(frequencyPenalty !== undefined ? { frequency_penalty: frequencyPenalty } : {}),
+          ...(presencePenalty !== undefined ? { presence_penalty: presencePenalty } : {}),
+          ...(maxTokens !== undefined ? { max_tokens: maxTokens } : {}),
+          ...(stop != null ? { stop } : {}),
+        });
+        res.json(result);
+      }
+    } catch (err: unknown) {
+      req.log.error({ err, model, provider: "openrouter" }, "OpenRouter error");
       sendOpenAIProviderError(res, err);
     }
     return;
