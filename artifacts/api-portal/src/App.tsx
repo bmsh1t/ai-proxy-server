@@ -1,27 +1,71 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 
+/* ─────────────────────────────────────────────
+   Apple-quality colour system
+   Light: apple.com light palette
+   Dark:  apple.com dark palette
+───────────────────────────────────────────── */
 const DARK: Record<string, string> = {
-  bg: "hsl(222, 47%, 11%)", bgCard: "hsl(222, 40%, 15%)", bgInput: "hsl(222, 40%, 13%)",
-  border: "hsl(222, 30%, 22%)", text: "hsl(210, 40%, 92%)", textMuted: "hsl(210, 20%, 60%)",
-  textDim: "hsl(210, 15%, 45%)", green: "hsl(142, 70%, 45%)", red: "hsl(0, 70%, 55%)",
-  blue: "hsl(210, 80%, 60%)", blueDark: "hsl(210, 80%, 20%)", purple: "hsl(270, 70%, 65%)",
-  purpleDark: "hsl(270, 60%, 20%)", orange: "hsl(30, 90%, 60%)", orangeDark: "hsl(30, 70%, 18%)",
-  cyan: "hsl(185, 80%, 55%)", gray: "hsl(220, 10%, 55%)", grayDark: "hsl(220, 15%, 20%)",
-  emerald: "hsl(152, 65%, 50%)", emeraldDark: "hsl(152, 55%, 14%)",
-  gradientA: "hsl(210, 80%, 60%)", gradientB: "hsl(270, 70%, 65%)",
+  bg:         "#000000",
+  bgCard:     "#1c1c1e",
+  bgInput:    "#2c2c2e",
+  bgHover:    "#38383a",
+  border:     "rgba(255,255,255,0.10)",
+  borderFocus:"rgba(41,151,255,0.80)",
+  text:       "#f5f5f7",
+  textMuted:  "#98989d",
+  textDim:    "#636366",
+  green:      "#30d158",
+  red:        "#ff453a",
+  blue:       "#2997ff",
+  blueDark:   "rgba(41,151,255,0.15)",
+  purple:     "#bf5af2",
+  purpleDark: "rgba(191,90,242,0.15)",
+  orange:     "#ff9f0a",
+  orangeDark: "rgba(255,159,10,0.15)",
+  cyan:       "#5ac8fa",
+  gray:       "#636366",
+  grayDark:   "#2c2c2e",
+  emerald:    "#30d158",
+  emeraldDark:"rgba(48,209,88,0.15)",
+  gradientA:  "#2997ff",
+  gradientB:  "#2997ff",
+  shadow:     "0 1px 3px rgba(0,0,0,0.4), 0 8px 24px rgba(0,0,0,0.3)",
+  shadowHover:"0 2px 8px rgba(0,0,0,0.5), 0 16px 32px rgba(0,0,0,0.35)",
 };
 
 const LIGHT: Record<string, string> = {
-  bg: "hsl(210, 20%, 97%)", bgCard: "hsl(0, 0%, 100%)", bgInput: "hsl(210, 20%, 94%)",
-  border: "hsl(210, 20%, 86%)", text: "hsl(222, 40%, 12%)", textMuted: "hsl(222, 15%, 40%)",
-  textDim: "hsl(222, 10%, 55%)", green: "hsl(142, 60%, 35%)", red: "hsl(0, 65%, 48%)",
-  blue: "hsl(210, 75%, 45%)", blueDark: "hsl(210, 80%, 92%)", purple: "hsl(270, 60%, 48%)",
-  purpleDark: "hsl(270, 60%, 92%)", orange: "hsl(30, 85%, 45%)", orangeDark: "hsl(30, 90%, 92%)",
-  cyan: "hsl(185, 70%, 38%)", gray: "hsl(220, 10%, 48%)", grayDark: "hsl(220, 15%, 92%)",
-  emerald: "hsl(152, 60%, 35%)", emeraldDark: "hsl(152, 55%, 90%)",
-  gradientA: "hsl(210, 80%, 55%)", gradientB: "hsl(270, 65%, 55%)",
+  bg:         "#f5f5f7",
+  bgCard:     "#ffffff",
+  bgInput:    "#f2f2f7",
+  bgHover:    "#e5e5ea",
+  border:     "rgba(0,0,0,0.08)",
+  borderFocus:"rgba(0,102,204,0.60)",
+  text:       "#1d1d1f",
+  textMuted:  "#6e6e73",
+  textDim:    "#aeaeb2",
+  green:      "#28cd41",
+  red:        "#ff3b30",
+  blue:       "#0066cc",
+  blueDark:   "rgba(0,102,204,0.08)",
+  purple:     "#8944ab",
+  purpleDark: "rgba(137,68,171,0.08)",
+  orange:     "#bf5900",
+  orangeDark: "rgba(191,89,0,0.08)",
+  cyan:       "#007aff",
+  gray:       "#8e8e93",
+  grayDark:   "#f2f2f7",
+  emerald:    "#34c759",
+  emeraldDark:"rgba(52,199,89,0.08)",
+  gradientA:  "#0066cc",
+  gradientB:  "#0066cc",
+  shadow:     "0 1px 3px rgba(0,0,0,0.05), 0 8px 24px rgba(0,0,0,0.04)",
+  shadowHover:"0 2px 8px rgba(0,0,0,0.08), 0 16px 32px rgba(0,0,0,0.06)",
 };
 
+/* ─────────────────────────────────────────────
+   i18n
+───────────────────────────────────────────── */
 const T_CN = {
   loading: "加载中...",
   loginSubtitle: "请输入密码以继续",
@@ -43,7 +87,7 @@ const T_CN = {
   curlLabel: "curl 示例 — Gemini 模型",
   copyCmd: "复制命令",
   copyUrl: "复制 URL",
-  copied: "已复制!",
+  copied: "已复制",
   copy: "复制",
   notePrefix: "注意：",
   footerPowered: "由",
@@ -56,11 +100,11 @@ const T_CN = {
     { title: "选择模型开始对话", desc: "GPT/o 系列 → OpenAI，Claude → Anthropic，Gemini → Google，自动路由" },
   ],
   selectModel: "选择模型",
-  generating: "● 生成中...",
+  generating: "生成中...",
   clearChat: "清空",
   chatEmpty: "发送消息开始测试",
   chatEmptySub: (m: string) => `使用 ${m} 模型，通过本代理路由`,
-  chatYou: "You",
+  chatYou: "你",
   chatPlaceholder: "输入消息... (Enter 发送，Shift+Enter 换行)",
   sendBtn: "发送",
   chatUnauth: "API Key 已变更，已自动刷新，请重新发送",
@@ -71,9 +115,9 @@ const T_CN = {
   settingsKeyLabel: "当前 / 新 PROXY_API_KEY",
   saveKeyBtn: "保存 API Key",
   saving: "保存中...",
-  savedOk: "✓ 已保存",
-  saveFail: "✗ 保存失败",
-  netError: "✗ 网络错误",
+  savedOk: "已保存",
+  saveFail: "保存失败",
+  netError: "网络错误",
   noChange: "未做更改",
   settingsPwdTitle: "修改访问密码",
   settingsPwdDesc: "修改 Portal 登录密码后，下次登录需要使用新密码。",
@@ -81,9 +125,9 @@ const T_CN = {
   newPwdPlaceholder: "输入新密码...",
   confirmPwdLabel: "确认新密码",
   confirmPwdPlaceholder: "再次输入...",
-  pwdMismatch: "✗ 两次密码不一致",
+  pwdMismatch: "两次密码不一致",
   updatePwdBtn: "更新密码",
-  pwdUpdated: "✓ 密码已更新",
+  pwdUpdated: "密码已更新",
   creditsTitle: "账户余额",
   creditsRemaining: "可用余额",
   creditsUsed: "本月消耗",
@@ -103,7 +147,7 @@ const T_CN = {
   settingsOAIKeyLabel: "OpenAI API Key",
   settingsOAIKeyPlaceholder: "sk-...",
   settingsOAIKeyClear: "清除",
-  settingsOAIKeySet: "已配置 ✓",
+  settingsOAIKeySet: "已配置",
   settingsOAIKeyUnset: "未配置",
   settingsOAIKeyFromEnv: "已通过环境变量配置，无需在此填写",
 };
@@ -117,9 +161,9 @@ const T_EN = {
   loginErrorNet: "Failed to connect to server, please retry",
   loginBtn: "Enter Dashboard",
   loginLoading: "Verifying...",
-  logout: "Logout",
+  logout: "Sign Out",
   online: "Online", offline: "Offline", checking: "Checking...",
-  tabDashboard: "Dashboard", tabChat: "Chat Test", tabModels: "Models", tabSettings: "Settings",
+  tabDashboard: "Dashboard", tabChat: "Chat", tabModels: "Models", tabSettings: "Settings",
   connDetails: "Connection Details",
   proxyKeyHint: (k: string) => `Current PROXY_API_KEY: ${k} · Change it in the Settings tab`,
   apiEndpoints: "API Endpoints",
@@ -129,7 +173,7 @@ const T_EN = {
   curlLabel: "curl example — Gemini model",
   copyCmd: "Copy command",
   copyUrl: "Copy URL",
-  copied: "Copied!",
+  copied: "Copied",
   copy: "Copy",
   notePrefix: "Note: ",
   footerPowered: "Powered by",
@@ -142,34 +186,34 @@ const T_EN = {
     { title: "Select a Model and Chat", desc: "Choose any model from the list. GPT/o-series → OpenAI, Claude → Anthropic, Gemini → Google — routed automatically" },
   ],
   selectModel: "Select Model",
-  generating: "● Generating...",
+  generating: "Generating...",
   clearChat: "Clear",
-  chatEmpty: "Send a message to start testing",
-  chatEmptySub: (m: string) => `Using ${m} model, routed through this proxy`,
+  chatEmpty: "Send a message to start",
+  chatEmptySub: (m: string) => `Using ${m} · routed through this proxy`,
   chatYou: "You",
-  chatPlaceholder: "Type a message... (Enter to send, Shift+Enter for newline)",
+  chatPlaceholder: "Message... (Enter to send, Shift+Enter for newline)",
   sendBtn: "Send",
-  chatUnauth: "API Key was updated, refreshed automatically — please resend",
-  chatUnauthFail: "Session expired, redirecting to login...",
+  chatUnauth: "API Key was updated — please resend",
+  chatUnauthFail: "Session expired, redirecting...",
   chatFail: "Request failed",
-  settingsKeyTitle: "API Key Configuration",
-  settingsKeyDesc: "After changing the Proxy API Key, all clients must use the new key to access the service.",
+  settingsKeyTitle: "API Key",
+  settingsKeyDesc: "After changing the Proxy API Key, all clients must use the new key.",
   settingsKeyLabel: "Current / New PROXY_API_KEY",
-  saveKeyBtn: "Save API Key",
+  saveKeyBtn: "Save",
   saving: "Saving...",
-  savedOk: "✓ Saved",
-  saveFail: "✗ Save failed",
-  netError: "✗ Network error",
+  savedOk: "Saved",
+  saveFail: "Save failed",
+  netError: "Network error",
   noChange: "No changes",
-  settingsPwdTitle: "Change Access Password",
+  settingsPwdTitle: "Access Password",
   settingsPwdDesc: "After changing the Portal password, you will need the new password on next login.",
   newPwdLabel: "New Password",
   newPwdPlaceholder: "Enter new password...",
-  confirmPwdLabel: "Confirm New Password",
-  confirmPwdPlaceholder: "Re-enter password...",
-  pwdMismatch: "✗ Passwords do not match",
+  confirmPwdLabel: "Confirm Password",
+  confirmPwdPlaceholder: "Re-enter...",
+  pwdMismatch: "Passwords do not match",
   updatePwdBtn: "Update Password",
-  pwdUpdated: "✓ Password updated",
+  pwdUpdated: "Password updated",
   creditsTitle: "Account Credits",
   creditsRemaining: "Remaining",
   creditsUsed: "Used This Month",
@@ -184,24 +228,25 @@ const T_EN = {
   creditsUsedLabel: "used",
   creditsNeedsKey: "An OpenAI API Key is required to query account credits.",
   goToSettings: "Go to Settings",
-  settingsOAIKeyTitle: "OpenAI API Key (for billing)",
-  settingsOAIKeyDesc: "Enter your OpenAI API Key (sk-...) to query account balance and monthly usage. This key is only used for billing API calls, not for proxied inference requests.",
+  settingsOAIKeyTitle: "OpenAI API Key (billing)",
+  settingsOAIKeyDesc: "Enter your OpenAI API Key (sk-...) to query account balance and monthly usage.",
   settingsOAIKeyLabel: "OpenAI API Key",
   settingsOAIKeyPlaceholder: "sk-...",
   settingsOAIKeyClear: "Clear",
-  settingsOAIKeySet: "Configured ✓",
+  settingsOAIKeySet: "Configured",
   settingsOAIKeyUnset: "Not configured",
-  settingsOAIKeyFromEnv: "Configured via environment variable — no action needed here",
+  settingsOAIKeyFromEnv: "Configured via environment variable — no action needed",
 };
 
 type TType = typeof T_CN;
 type Lang = "cn" | "en";
-
 type Cap = "stream" | "tools" | "vision" | "reasoning" | "json";
 type ModelMeta = { id: string; note?: string; ctx: string; caps: Cap[]; route: string };
 
+/* ─────────────────────────────────────────────
+   Model catalogue
+───────────────────────────────────────────── */
 const OPENAI_MODELS: ModelMeta[] = [
-  // ── GPT-5.x series ──
   { id: "gpt-5.4",        note: "Latest",       ctx: "1M",   caps: ["stream","tools","vision","json","reasoning"], route: "/v1/chat/completions · /v1/responses" },
   { id: "gpt-5.3-codex",  note: "Code",         ctx: "1M",   caps: ["stream","tools","vision","json","reasoning"], route: "/v1/chat/completions · /v1/responses" },
   { id: "gpt-5.2",                               ctx: "1M",   caps: ["stream","tools","vision","json","reasoning"], route: "/v1/chat/completions · /v1/responses" },
@@ -210,16 +255,14 @@ const OPENAI_MODELS: ModelMeta[] = [
   { id: "gpt-5",          note: "Most capable", ctx: "1M",   caps: ["stream","tools","vision","json","reasoning"], route: "/v1/chat/completions · /v1/responses" },
   { id: "gpt-5-mini",                            ctx: "1M",   caps: ["stream","tools","vision","json","reasoning"], route: "/v1/chat/completions · /v1/responses" },
   { id: "gpt-5-nano",     note: "Fastest",      ctx: "1M",   caps: ["stream","tools","vision","json","reasoning"], route: "/v1/chat/completions · /v1/responses" },
-  // ── GPT-4.x series ──
   { id: "gpt-4.1",        note: "Recommended",  ctx: "1M",   caps: ["stream","tools","vision","json"], route: "/v1/chat/completions" },
   { id: "gpt-4.1-mini",                          ctx: "1M",   caps: ["stream","tools","vision","json"], route: "/v1/chat/completions" },
   { id: "gpt-4.1-nano",   note: "Fast",         ctx: "1M",   caps: ["stream","tools","vision","json"], route: "/v1/chat/completions" },
   { id: "gpt-4o",                                ctx: "128K", caps: ["stream","tools","vision","json"], route: "/v1/chat/completions" },
   { id: "gpt-4o-mini",                           ctx: "128K", caps: ["stream","tools","vision","json"], route: "/v1/chat/completions" },
-  // ── Reasoning series ──
-  { id: "o4-mini",        note: "Reasoning",    ctx: "200K", caps: ["stream","tools","vision","reasoning"],     route: "/v1/chat/completions" },
-  { id: "o3",             note: "Reasoning",    ctx: "200K", caps: ["stream","vision","reasoning"],             route: "/v1/chat/completions" },
-  { id: "o3-mini",        note: "Reasoning",    ctx: "200K", caps: ["stream","reasoning"],             route: "/v1/chat/completions" },
+  { id: "o4-mini",        note: "Reasoning",    ctx: "200K", caps: ["stream","tools","vision","reasoning"],        route: "/v1/chat/completions" },
+  { id: "o3",             note: "Reasoning",    ctx: "200K", caps: ["stream","vision","reasoning"],                route: "/v1/chat/completions" },
+  { id: "o3-mini",        note: "Reasoning",    ctx: "200K", caps: ["stream","reasoning"],                        route: "/v1/chat/completions" },
 ];
 const ANTHROPIC_MODELS: ModelMeta[] = [
   { id: "claude-opus-4-6",   note: "Most capable", ctx: "200K", caps: ["stream","tools","vision","json","reasoning"], route: "/v1/chat/completions · /v1/messages" },
@@ -227,7 +270,7 @@ const ANTHROPIC_MODELS: ModelMeta[] = [
   { id: "claude-opus-4-1",                          ctx: "200K", caps: ["stream","tools","vision","json","reasoning"], route: "/v1/chat/completions · /v1/messages" },
   { id: "claude-sonnet-4-6", note: "Recommended",  ctx: "200K", caps: ["stream","tools","vision","json","reasoning"], route: "/v1/chat/completions · /v1/messages" },
   { id: "claude-sonnet-4-5",                        ctx: "200K", caps: ["stream","tools","vision","json","reasoning"], route: "/v1/chat/completions · /v1/messages" },
-  { id: "claude-haiku-4-5",  note: "Fastest",      ctx: "200K", caps: ["stream","tools","vision","json"], route: "/v1/chat/completions · /v1/messages" },
+  { id: "claude-haiku-4-5",  note: "Fastest",      ctx: "200K", caps: ["stream","tools","vision","json"],             route: "/v1/chat/completions · /v1/messages" },
 ];
 const GEMINI_MODELS: ModelMeta[] = [
   { id: "gemini-3.1-pro-preview",                       ctx: "2M",  caps: ["stream","tools","vision","reasoning"],        route: "/v1/chat/completions · /v1/messages" },
@@ -237,28 +280,21 @@ const GEMINI_MODELS: ModelMeta[] = [
   { id: "gemini-2.5-flash", note: "Recommended",       ctx: "1M",  caps: ["stream","tools","vision","json","reasoning"], route: "/v1/chat/completions · /v1/messages" },
 ];
 const OPENROUTER_MODELS: ModelMeta[] = [
-  // ── Meta Llama ──
   { id: "meta-llama/llama-4-maverick", note: "Recommended", ctx: "1M",   caps: ["stream","tools","vision","json"], route: "/v1/chat/completions" },
   { id: "meta-llama/llama-4-scout",                          ctx: "512K", caps: ["stream","tools","vision","json"], route: "/v1/chat/completions" },
   { id: "meta-llama/llama-3.3-70b-instruct",                ctx: "128K", caps: ["stream","tools","json"],          route: "/v1/chat/completions" },
   { id: "meta-llama/llama-3.1-8b-instruct",  note: "Fast",  ctx: "128K", caps: ["stream","tools","json"],          route: "/v1/chat/completions" },
-  // ── DeepSeek ──
   { id: "deepseek/deepseek-r1",           note: "Reasoning", ctx: "128K", caps: ["stream","reasoning"],            route: "/v1/chat/completions" },
   { id: "deepseek/deepseek-chat-v3-0324",                    ctx: "64K",  caps: ["stream","tools","json"],          route: "/v1/chat/completions" },
-  // ── xAI Grok ──
   { id: "x-ai/grok-3",      note: "Most capable", ctx: "131K", caps: ["stream","tools","json"],                   route: "/v1/chat/completions" },
   { id: "x-ai/grok-3-mini", note: "Fast",         ctx: "131K", caps: ["stream","tools","json"],                   route: "/v1/chat/completions" },
-  // ── Mistral ──
   { id: "mistralai/mistral-large-2411",                          ctx: "128K", caps: ["stream","tools","json"],     route: "/v1/chat/completions" },
   { id: "mistralai/mistral-small-3.1-24b-instruct",              ctx: "128K", caps: ["stream","tools","vision","json"], route: "/v1/chat/completions" },
   { id: "mistralai/codestral-2501",              note: "Code",  ctx: "256K", caps: ["stream","json"],             route: "/v1/chat/completions" },
-  // ── Qwen ──
   { id: "qwen/qwen3-235b-a22b",  note: "Most capable", ctx: "40K",  caps: ["stream","tools","json"],              route: "/v1/chat/completions" },
   { id: "qwen/qwen-2.5-72b-instruct",                   ctx: "131K", caps: ["stream","tools","json"],             route: "/v1/chat/completions" },
-  // ── Microsoft ──
   { id: "microsoft/phi-4",                                ctx: "16K",  caps: ["stream","tools","json"],            route: "/v1/chat/completions" },
   { id: "microsoft/phi-4-multimodal-instruct",            ctx: "128K", caps: ["stream","tools","vision","json"],  route: "/v1/chat/completions" },
-  // ── NVIDIA ──
   { id: "nvidia/llama-3.1-nemotron-70b-instruct",         ctx: "128K", caps: ["stream","tools","json"],           route: "/v1/chat/completions" },
 ];
 const ALL_MODELS = [
@@ -267,16 +303,20 @@ const ALL_MODELS = [
   ...GEMINI_MODELS.map((m) => ({ ...m, provider: "Gemini" as const })),
   ...OPENROUTER_MODELS.map((m) => ({ ...m, provider: "OpenRouter" as const })),
 ];
+
 const ENDPOINTS = [
-  { method: "GET", path: "/v1/models", label: "List Models", type: "Both", desc: "Returns all available model IDs across OpenAI, Anthropic, Gemini and OpenRouter" },
-  { method: "GET", path: "/v1/credits", label: "Credits Balance", type: "Both", desc: "Query OpenAI account credits balance and this month's usage. Auth with proxyApiKey Bearer token." },
-  { method: "POST", path: "/v1/chat/completions", label: "Chat Completions", type: "OpenAI", desc: "OpenAI-compatible chat API. Supports streaming, tool calls, and all models via prefix routing" },
-  { method: "POST", path: "/v1/responses", label: "Responses API", type: "Responses", desc: "OpenAI Responses API pass-through with suffix reasoning override and reasoning.effort normalization. Streaming supported." },
-  { method: "POST", path: "/v1/messages", label: "Messages", type: "Anthropic", desc: "Anthropic native Messages API. Supports streaming, tool use, and Claude / GPT / Gemini model routing with Thinking adaptation" },
+  { method: "GET",  path: "/v1/models",            label: "List Models",       type: "Both",      desc: "Returns all available model IDs across OpenAI, Anthropic, Gemini and OpenRouter" },
+  { method: "GET",  path: "/v1/credits",           label: "Credits Balance",   type: "Both",      desc: "Query OpenAI account credits balance and this month's usage. Auth with proxyApiKey Bearer token." },
+  { method: "POST", path: "/v1/chat/completions",  label: "Chat Completions",  type: "OpenAI",    desc: "OpenAI-compatible chat API. Supports streaming, tool calls, and all models via prefix routing" },
+  { method: "POST", path: "/v1/responses",         label: "Responses API",     type: "Responses", desc: "OpenAI Responses API pass-through with suffix reasoning override. Streaming supported." },
+  { method: "POST", path: "/v1/messages",          label: "Messages",          type: "Anthropic", desc: "Anthropic native Messages API. Supports streaming, tool use, and all model routing with Thinking adaptation" },
 ];
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
 
+/* ─────────────────────────────────────────────
+   Reusable micro-components
+───────────────────────────────────────────── */
 function CopyButton({ text, label, C, t }: { text: string; label?: string; C: Record<string, string>; t: TType }) {
   const [copied, setCopied] = useState(false);
   const handleCopy = useCallback(async () => {
@@ -292,54 +332,85 @@ function CopyButton({ text, label, C, t }: { text: string; label?: string; C: Re
     } catch { setCopied(false); }
   }, [text]);
   return (
-    <button onClick={handleCopy} style={{ background: copied ? C.green : C.bgInput, border: `1px solid ${copied ? C.green : C.border}`, color: copied ? "#fff" : C.textMuted, borderRadius: 6, padding: "4px 10px", fontSize: 12, cursor: "pointer", transition: "all 0.2s", whiteSpace: "nowrap" }}>
-      {copied ? t.copied : label ?? t.copy}
+    <button onClick={handleCopy} style={{
+      background: copied ? C.blue : "transparent",
+      border: `1px solid ${copied ? C.blue : C.border}`,
+      color: copied ? "#fff" : C.textMuted,
+      borderRadius: 8, padding: "5px 12px", fontSize: 12, fontWeight: 500,
+      cursor: "pointer", transition: "all 0.18s", whiteSpace: "nowrap",
+      letterSpacing: "-0.01em",
+    }}>
+      {copied ? `✓ ${t.copied}` : label ?? t.copy}
     </button>
   );
 }
 
-function Badge({ children, color, bg }: { children: React.ReactNode; color: string; bg: string }) {
-  return <span style={{ background: bg, color, borderRadius: 4, padding: "2px 8px", fontSize: 11, fontWeight: 600, letterSpacing: "0.03em" }}>{children}</span>;
-}
-
 function MethodBadge({ method, C }: { method: string; C: Record<string, string> }) {
   const isGet = method === "GET";
-  return <span style={{ background: isGet ? "hsl(142,60%,18%)" : C.purpleDark, color: isGet ? C.green : C.purple, borderRadius: 4, padding: "3px 10px", fontSize: 12, fontWeight: 700, fontFamily: "monospace", letterSpacing: "0.05em", minWidth: 48, display: "inline-block", textAlign: "center" }}>{method}</span>;
+  return (
+    <span style={{
+      background: isGet ? C.emeraldDark : C.blueDark,
+      color: isGet ? C.emerald : C.blue,
+      borderRadius: 6, padding: "3px 10px", fontSize: 11, fontWeight: 600,
+      fontFamily: "'SF Mono', 'Fira Code', monospace",
+      letterSpacing: "0.04em", minWidth: 44, display: "inline-block", textAlign: "center",
+    }}>{method}</span>
+  );
 }
 
 function StatusDot({ online, C, t }: { online: boolean | null; C: Record<string, string>; t: TType }) {
   const color = online === null ? C.orange : online ? C.green : C.red;
   return (
     <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-      <span style={{ width: 9, height: 9, borderRadius: "50%", background: color, display: "inline-block", boxShadow: `0 0 8px 2px ${color}`, flexShrink: 0 }} />
-      <span style={{ fontSize: 13, color: C.textMuted, fontWeight: 500 }}>{online === null ? t.checking : online ? t.online : t.offline}</span>
+      <span style={{
+        width: 7, height: 7, borderRadius: "50%", background: color,
+        display: "inline-block", flexShrink: 0,
+        boxShadow: online ? `0 0 0 2px ${color}30` : "none",
+      }} />
+      <span style={{ fontSize: 12, color: C.textMuted, fontWeight: 400, letterSpacing: "-0.01em" }}>
+        {online === null ? t.checking : online ? t.online : t.offline}
+      </span>
     </span>
   );
 }
 
 function Section({ title, children, C }: { title: string; children: React.ReactNode; C: Record<string, string> }) {
   return (
-    <div style={{ marginBottom: 32 }}>
-      <h2 style={{ color: C.text, fontSize: 17, fontWeight: 700, marginBottom: 14, letterSpacing: "-0.01em" }}>{title}</h2>
+    <div style={{ marginBottom: 36 }}>
+      <h2 style={{
+        color: C.text, fontSize: 20, fontWeight: 600, marginBottom: 16,
+        letterSpacing: "-0.025em", lineHeight: 1.2,
+      }}>{title}</h2>
       {children}
     </div>
   );
 }
 
 function Card({ children, style, C }: { children: React.ReactNode; style?: React.CSSProperties; C: Record<string, string> }) {
-  return <div style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 10, padding: "16px 20px", ...style }}>{children}</div>;
+  return (
+    <div style={{
+      background: C.bgCard, borderRadius: 14, padding: "20px 24px",
+      boxShadow: C.shadow, ...style,
+    }}>{children}</div>
+  );
 }
 
 function ModelGroup({ title, models, color, bg, C }: { title: string; models: { id: string; note?: string }[]; color: string; bg: string; C: Record<string, string> }) {
   return (
     <div style={{ marginBottom: 20 }}>
-      <div style={{ fontSize: 12, fontWeight: 700, color, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 8 }}>{title}</div>
+      <div style={{ fontSize: 11, fontWeight: 600, color, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 10 }}>{title}</div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(210px, 1fr))", gap: 8 }}>
         {models.map((m) => (
-          <Card key={m.id} C={C} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "10px 14px" }}>
-            <code style={{ fontSize: 12, color: C.text, fontFamily: "monospace", wordBreak: "break-all", flex: 1 }}>{m.id}</code>
-            {m.note && <span style={{ fontSize: 11, color, background: bg, borderRadius: 4, padding: "1px 7px", whiteSpace: "nowrap", flexShrink: 0 }}>{m.note}</span>}
-          </Card>
+          <div key={m.id} style={{
+            background: C.bgCard, borderRadius: 10, padding: "10px 14px",
+            display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8,
+            boxShadow: C.shadow,
+          }}>
+            <code style={{ fontSize: 12, color: C.text, fontFamily: "'SF Mono','Fira Code',monospace", wordBreak: "break-all", flex: 1 }}>{m.id}</code>
+            {m.note && (
+              <span style={{ fontSize: 10, color, background: bg, borderRadius: 4, padding: "1px 7px", whiteSpace: "nowrap", flexShrink: 0, fontWeight: 600, letterSpacing: "0.02em" }}>{m.note}</span>
+            )}
+          </div>
         ))}
       </div>
     </div>
@@ -348,9 +419,19 @@ function ModelGroup({ title, models, color, bg, C }: { title: string; models: { 
 
 function LangToggle({ lang, setLang, C }: { lang: Lang; setLang: (l: Lang) => void; C: Record<string, string> }) {
   return (
-    <div style={{ display: "flex", background: C.bgInput, border: `1px solid ${C.border}`, borderRadius: 8, overflow: "hidden", fontSize: 12, fontWeight: 700 }}>
+    <div style={{
+      display: "flex", background: C.bgInput, borderRadius: 8, overflow: "hidden",
+      fontSize: 12, fontWeight: 500, padding: 2, gap: 2,
+    }}>
       {(["cn", "en"] as Lang[]).map((l) => (
-        <button key={l} onClick={() => setLang(l)} style={{ padding: "5px 10px", background: lang === l ? `linear-gradient(135deg, ${C.gradientA}, ${C.gradientB})` : "transparent", color: lang === l ? "#fff" : C.textMuted, border: "none", cursor: "pointer", transition: "all 0.15s", letterSpacing: "0.04em" }}>
+        <button key={l} onClick={() => setLang(l)} style={{
+          padding: "4px 10px",
+          background: lang === l ? C.bgCard : "transparent",
+          color: lang === l ? C.text : C.textMuted,
+          border: "none", cursor: "pointer", transition: "all 0.18s",
+          borderRadius: 6, letterSpacing: "0.02em", fontWeight: lang === l ? 500 : 400,
+          boxShadow: lang === l ? C.shadow : "none",
+        }}>
           {l === "cn" ? "中文" : "EN"}
         </button>
       ))}
@@ -358,10 +439,14 @@ function LangToggle({ lang, setLang, C }: { lang: Lang; setLang: (l: Lang) => vo
   );
 }
 
+/* ─────────────────────────────────────────────
+   Login Page — Apple ID quality
+───────────────────────────────────────────── */
 function LoginPage({ C, t, onLogin }: { C: Record<string, string>; t: TType; onLogin: (token: string, proxyApiKey: string, oaiSet?: boolean, oaiFromEnv?: boolean) => void }) {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [focused, setFocused] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -375,36 +460,98 @@ function LoginPage({ C, t, onLogin }: { C: Record<string, string>; t: TType; onL
   };
 
   return (
-    <div style={{ minHeight: "100vh", background: C.bg, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Inter', system-ui, sans-serif" }}>
-      <div style={{ width: "100%", maxWidth: 380, padding: "0 24px" }}>
-        <div style={{ textAlign: "center", marginBottom: 32 }}>
-          <div style={{ width: 56, height: 56, borderRadius: 14, background: `linear-gradient(135deg, ${C.gradientA}, ${C.gradientB})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, margin: "0 auto 16px" }}>⚡</div>
-          <div style={{ fontWeight: 700, fontSize: 22, color: C.text, marginBottom: 6 }}>AI Proxy Portal</div>
-          <div style={{ fontSize: 14, color: C.textMuted }}>{t.loginSubtitle}</div>
+    <div style={{
+      minHeight: "100vh", background: C.bg,
+      display: "flex", alignItems: "center", justifyContent: "center",
+      fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', system-ui, sans-serif",
+      padding: "0 24px",
+    }}>
+      <div style={{ width: "100%", maxWidth: 360 }}>
+        {/* Logo mark */}
+        <div style={{ textAlign: "center", marginBottom: 40 }}>
+          <div style={{
+            width: 64, height: 64, borderRadius: 18, margin: "0 auto 20px",
+            background: `linear-gradient(145deg, ${C.blue} 0%, ${C.purple} 100%)`,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            boxShadow: `0 8px 32px ${C.blue}40`,
+          }}>
+            {/* Abstract lightning bolt via SVG */}
+            <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+              <path d="M16 2L6 16h8l-2 10 12-14h-8l2-10z" fill="white" fillOpacity="0.95" />
+            </svg>
+          </div>
+          <div style={{ fontWeight: 600, fontSize: 26, color: C.text, letterSpacing: "-0.03em", marginBottom: 6 }}>AI Proxy Portal</div>
+          <div style={{ fontSize: 15, color: C.textMuted, letterSpacing: "-0.01em" }}>{t.loginSubtitle}</div>
         </div>
-        <Card C={C}>
-          <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+
+        {/* Form card */}
+        <div style={{
+          background: C.bgCard, borderRadius: 18, padding: "28px 28px 24px",
+          boxShadow: C.shadow,
+        }}>
+          <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             <div>
-              <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: C.textMuted, marginBottom: 8 }}>{t.loginLabel}</label>
-              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder={t.loginPlaceholder} autoFocus style={{ width: "100%", background: C.bgInput, border: `1px solid ${error ? C.red : C.border}`, borderRadius: 8, padding: "10px 14px", fontSize: 14, color: C.text, outline: "none", boxSizing: "border-box", transition: "border-color 0.2s" }} />
-              {error && <div style={{ marginTop: 8, fontSize: 13, color: C.red }}>{error}</div>}
+              <label style={{
+                display: "block", fontSize: 13, fontWeight: 500, color: C.textMuted,
+                marginBottom: 8, letterSpacing: "-0.01em",
+              }}>{t.loginLabel}</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder={t.loginPlaceholder}
+                autoFocus
+                onFocus={() => setFocused(true)}
+                onBlur={() => setFocused(false)}
+                style={{
+                  width: "100%", background: C.bgInput, border: "none",
+                  borderRadius: 10, padding: "11px 14px", fontSize: 15,
+                  color: C.text, outline: "none", boxSizing: "border-box",
+                  boxShadow: focused ? `0 0 0 3px ${C.borderFocus}` : "none",
+                  transition: "box-shadow 0.18s",
+                  letterSpacing: password ? "0.05em" : undefined,
+                }}
+              />
+              {error && (
+                <div style={{ marginTop: 8, fontSize: 13, color: C.red, letterSpacing: "-0.01em" }}>{error}</div>
+              )}
             </div>
-            <button type="submit" disabled={loading || !password} style={{ background: `linear-gradient(135deg, ${C.gradientA}, ${C.gradientB})`, border: "none", borderRadius: 8, padding: "11px", fontSize: 14, fontWeight: 700, color: "#fff", cursor: loading || !password ? "not-allowed" : "pointer", opacity: loading || !password ? 0.7 : 1, transition: "opacity 0.2s" }}>
+            <button
+              type="submit"
+              disabled={loading || !password}
+              style={{
+                background: loading || !password ? C.bgInput : C.blue,
+                border: "none", borderRadius: 10, padding: "12px",
+                fontSize: 15, fontWeight: 500, color: loading || !password ? C.textDim : "#fff",
+                cursor: loading || !password ? "not-allowed" : "pointer",
+                transition: "all 0.18s", letterSpacing: "-0.01em",
+                marginTop: 2,
+              }}
+            >
               {loading ? t.loginLoading : t.loginBtn}
             </button>
           </form>
-        </Card>
-        <div style={{ marginTop: 16, display: "flex", justifyContent: "center" }}>
-          <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 12px", borderRadius: 999, border: `1px solid ${C.purple}`, background: C.bgCard, color: C.textMuted, fontSize: 12, fontWeight: 600, boxShadow: `0 8px 24px ${C.shadow}` }}>
-            <span style={{ color: C.gradientB, fontFamily: "monospace", fontWeight: 700, letterSpacing: "0.06em" }}>v4.1</span>
+        </div>
+
+        {/* Version pill */}
+        <div style={{ marginTop: 20, textAlign: "center" }}>
+          <span style={{
+            display: "inline-flex", alignItems: "center", gap: 6,
+            fontSize: 12, color: C.textDim, fontWeight: 400,
+            letterSpacing: "-0.01em",
+          }}>
+            <span style={{ fontFamily: "'SF Mono','Fira Code',monospace", color: C.textDim }}>v4.1</span>
             <span>AI Proxy Portal</span>
-          </div>
+          </span>
         </div>
       </div>
     </div>
   );
 }
 
+/* ─────────────────────────────────────────────
+   Chat Tab
+───────────────────────────────────────────── */
 function ChatTab({ C, t, proxyApiKey, adminToken, onKeyRefresh, onForceRelogin, initModel }: {
   C: Record<string, string>; t: TType; proxyApiKey: string;
   adminToken: string; onKeyRefresh: (k: string) => void; onForceRelogin: () => void;
@@ -433,135 +580,237 @@ function ChatTab({ C, t, proxyApiKey, adminToken, onKeyRefresh, onForceRelogin, 
     setInput(""); setError(""); setStreaming(true);
     setMessages([...newMessages, { role: "assistant", content: "" }]);
 
-    const doFetch = async (key: string): Promise<Response> => {
-      return fetch("/v1/chat/completions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${key}` },
-        body: JSON.stringify({ model: selectedModel, messages: newMessages, stream: true }),
-      });
-    };
+    const doFetch = async (key: string): Promise<Response> => fetch("/v1/chat/completions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${key}` },
+      body: JSON.stringify({ model: selectedModel, messages: newMessages, stream: true }),
+    });
 
     try {
       let res = await doFetch(proxyApiKeyRef.current);
-
       if (res.status === 401) {
         const settingsRes = await fetch("/api/config/settings", { headers: { "Authorization": `Bearer ${adminToken}` } });
         if (settingsRes.ok) {
           const data = await settingsRes.json() as { proxyApiKey: string };
-          onKeyRefresh(data.proxyApiKey);
-          proxyApiKeyRef.current = data.proxyApiKey;
-          setError(t.chatUnauth);
-          setMessages(newMessages);
-          setStreaming(false);
-          return;
+          onKeyRefresh(data.proxyApiKey); proxyApiKeyRef.current = data.proxyApiKey;
+          setError(t.chatUnauth); setMessages(newMessages); setStreaming(false); return;
         } else {
-          setError(t.chatUnauthFail);
-          setMessages(newMessages);
-          setStreaming(false);
-          setTimeout(onForceRelogin, 1500);
-          return;
+          setError(t.chatUnauthFail); setMessages(newMessages); setStreaming(false);
+          setTimeout(onForceRelogin, 1500); return;
         }
       }
-
       if (!res.ok) {
         const errData = await res.json().catch(() => ({})) as { error?: { message?: string } };
         setError(errData?.error?.message ?? `HTTP ${res.status}`);
         setMessages(newMessages); setStreaming(false); return;
       }
-
       const reader = res.body?.getReader();
       const decoder = new TextDecoder();
       if (!reader) throw new Error("No response body");
-
-      let accumulated = "";
-      let sseBuffer = "";
+      let accumulated = ""; let sseBuffer = "";
       while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+        const { done, value } = await reader.read(); if (done) break;
         sseBuffer += decoder.decode(value, { stream: true });
-        const lines = sseBuffer.split("\n");
-        sseBuffer = lines.pop() ?? "";
+        const lines = sseBuffer.split("\n"); sseBuffer = lines.pop() ?? "";
         for (const line of lines) {
           if (!line.startsWith("data: ")) continue;
-          const data = line.slice(6).trim();
-          if (data === "[DONE]") continue;
+          const data = line.slice(6).trim(); if (data === "[DONE]") continue;
           try {
             const parsed = JSON.parse(data) as { choices?: { delta?: { content?: string } }[] };
             const delta = parsed.choices?.[0]?.delta?.content ?? "";
-            accumulated += delta;
-            setMessages([...newMessages, { role: "assistant", content: accumulated }]);
+            accumulated += delta; setMessages([...newMessages, { role: "assistant", content: accumulated }]);
           } catch { /* ignore partial SSE */ }
         }
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : t.chatFail);
-      setMessages(newMessages);
-    } finally {
-      setStreaming(false);
-    }
+      setError(e instanceof Error ? e.message : t.chatFail); setMessages(newMessages);
+    } finally { setStreaming(false); }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } };
   const selectedInfo = ALL_MODELS.find((m) => m.id === selectedModel);
 
   return (
-    <div style={{ display: "flex", gap: 16, height: "calc(100vh - 130px)", minHeight: 500 }}>
-      <div style={{ width: 210, flexShrink: 0, display: "flex", flexDirection: "column", gap: 4, overflowY: "auto" }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: C.textDim, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 6 }}>{t.selectModel}</div>
+    <div style={{ display: "flex", gap: 16, height: "calc(100vh - 58px)", minHeight: 500 }}>
+      {/* Model selector sidebar */}
+      <div style={{
+        width: 200, flexShrink: 0, display: "flex", flexDirection: "column",
+        gap: 2, overflowY: "auto", paddingRight: 4,
+      }}>
+        <div style={{
+          fontSize: 10, fontWeight: 600, color: C.textDim,
+          textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8, paddingLeft: 8,
+        }}>{t.selectModel}</div>
         {(["OpenAI", "Anthropic", "Gemini", "OpenRouter"] as const).map((provider) => (
           <div key={provider}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: providerColor(provider), textTransform: "uppercase", letterSpacing: "0.06em", padding: "4px 0", marginTop: 4 }}>{provider}</div>
+            <div style={{
+              fontSize: 10, fontWeight: 600, color: providerColor(provider),
+              textTransform: "uppercase", letterSpacing: "0.08em",
+              padding: "6px 8px 3px", marginTop: 6,
+            }}>{provider}</div>
             {ALL_MODELS.filter((m) => m.provider === provider).map((m) => (
-              <button key={m.id} onClick={() => setSelectedModel(m.id)} style={{ display: "block", width: "100%", textAlign: "left", background: selectedModel === m.id ? providerBg(provider) : "transparent", border: `1px solid ${selectedModel === m.id ? providerColor(provider) : "transparent"}`, borderRadius: 6, padding: "5px 8px", cursor: "pointer", marginBottom: 2, color: selectedModel === m.id ? providerColor(provider) : C.textMuted, fontSize: 11, fontFamily: "monospace", transition: "all 0.15s" }}>
+              <button
+                key={m.id}
+                onClick={() => setSelectedModel(m.id)}
+                style={{
+                  display: "block", width: "100%", textAlign: "left",
+                  background: selectedModel === m.id ? providerBg(provider) : "transparent",
+                  borderTop: "none", borderRight: "none", borderBottom: "none",
+                  borderLeft: `3px solid ${selectedModel === m.id ? providerColor(provider) : "transparent"}`,
+                  borderRadius: "0 8px 8px 0",
+                  padding: "5px 8px 5px 10px", cursor: "pointer", marginBottom: 1,
+                  color: selectedModel === m.id ? providerColor(provider) : C.textMuted,
+                  fontSize: 11, fontFamily: "'SF Mono','Fira Code',monospace",
+                  transition: "all 0.15s", letterSpacing: "-0.01em",
+                }}
+              >
                 {m.id}
-                {m.note && <span style={{ display: "block", fontSize: 10, fontFamily: "system-ui", color: selectedModel === m.id ? providerColor(provider) : C.textDim, marginTop: 1 }}>{m.note}</span>}
+                {m.note && (
+                  <span style={{
+                    display: "block", fontSize: 9, fontFamily: "system-ui",
+                    color: selectedModel === m.id ? providerColor(provider) : C.textDim,
+                    marginTop: 1, letterSpacing: "0.02em", fontWeight: 500,
+                  }}>{m.note}</span>
+                )}
               </button>
             ))}
           </div>
         ))}
       </div>
 
+      {/* Chat panel */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
-        <Card C={C} style={{ flex: 1, display: "flex", flexDirection: "column", padding: 0, overflow: "hidden" }}>
-          <div style={{ padding: "10px 14px", borderBottom: `1px solid ${C.border}`, display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ background: selectedInfo ? providerBg(selectedInfo.provider) : C.grayDark, color: selectedInfo ? providerColor(selectedInfo.provider) : C.gray, borderRadius: 5, padding: "2px 7px", fontSize: 11, fontWeight: 700 }}>{selectedInfo?.provider ?? "?"}</span>
-            <code style={{ fontSize: 13, color: C.text, fontFamily: "monospace" }}>{selectedModel}</code>
-            {streaming && <span style={{ fontSize: 12, color: C.emerald, marginLeft: "auto" }}>{t.generating}</span>}
-            {messages.length > 0 && !streaming && <button onClick={() => { setMessages([]); setError(""); }} style={{ marginLeft: "auto", background: "transparent", border: `1px solid ${C.border}`, borderRadius: 6, padding: "2px 10px", fontSize: 12, color: C.textMuted, cursor: "pointer" }}>{t.clearChat}</button>}
+        <div style={{
+          flex: 1, display: "flex", flexDirection: "column",
+          background: C.bgCard, borderRadius: 16, overflow: "hidden",
+          boxShadow: C.shadow,
+        }}>
+          {/* Header */}
+          <div style={{
+            padding: "12px 16px", borderBottom: `1px solid ${C.border}`,
+            display: "flex", alignItems: "center", gap: 10,
+          }}>
+            {selectedInfo && (
+              <span style={{
+                background: providerBg(selectedInfo.provider),
+                color: providerColor(selectedInfo.provider),
+                borderRadius: 6, padding: "2px 8px", fontSize: 10, fontWeight: 600,
+                letterSpacing: "0.04em", textTransform: "uppercase",
+              }}>{selectedInfo.provider}</span>
+            )}
+            <code style={{
+              fontSize: 13, color: C.text,
+              fontFamily: "'SF Mono','Fira Code',monospace",
+              letterSpacing: "-0.01em",
+            }}>{selectedModel}</code>
+            {streaming && (
+              <span style={{ fontSize: 12, color: C.blue, marginLeft: "auto", letterSpacing: "-0.01em" }}>
+                {t.generating}
+              </span>
+            )}
+            {messages.length > 0 && !streaming && (
+              <button
+                onClick={() => { setMessages([]); setError(""); }}
+                style={{
+                  marginLeft: "auto", background: "transparent", border: "none",
+                  borderRadius: 6, padding: "3px 10px", fontSize: 12,
+                  color: C.textMuted, cursor: "pointer", letterSpacing: "-0.01em",
+                  transition: "color 0.15s",
+                }}
+              >{t.clearChat}</button>
+            )}
           </div>
 
-          <div style={{ flex: 1, overflowY: "auto", padding: "14px", display: "flex", flexDirection: "column", gap: 12 }}>
+          {/* Messages */}
+          <div style={{
+            flex: 1, overflowY: "auto", padding: "16px 20px",
+            display: "flex", flexDirection: "column", gap: 16,
+          }}>
             {messages.length === 0 && !error && (
-              <div style={{ textAlign: "center", color: C.textDim, fontSize: 14, marginTop: 40 }}>
-                <div style={{ fontSize: 28, marginBottom: 10 }}>💬</div>
-                <div>{t.chatEmpty}</div>
-                <div style={{ fontSize: 12, marginTop: 6 }}>{t.chatEmptySub(selectedModel)}</div>
+              <div style={{ textAlign: "center", color: C.textDim, fontSize: 14, marginTop: 60 }}>
+                <div style={{
+                  width: 48, height: 48, borderRadius: 12, background: C.bgInput,
+                  margin: "0 auto 16px", display: "flex", alignItems: "center", justifyContent: "center",
+                }}>
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={C.textDim} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                  </svg>
+                </div>
+                <div style={{ fontWeight: 500, marginBottom: 6, color: C.textMuted, letterSpacing: "-0.01em" }}>{t.chatEmpty}</div>
+                <div style={{ fontSize: 12, color: C.textDim }}>{t.chatEmptySub(selectedModel)}</div>
               </div>
             )}
             {messages.map((msg, i) => (
               <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: msg.role === "user" ? "flex-end" : "flex-start" }}>
-                <div style={{ fontSize: 11, color: C.textDim, marginBottom: 3, fontWeight: 600 }}>{msg.role === "user" ? t.chatYou : selectedModel}</div>
-                <div style={{ maxWidth: "85%", padding: "9px 13px", borderRadius: 10, fontSize: 14, lineHeight: 1.6, background: msg.role === "user" ? `linear-gradient(135deg, ${C.gradientA}, ${C.gradientB})` : C.bgInput, color: msg.role === "user" ? "#fff" : C.text, border: msg.role === "assistant" ? `1px solid ${C.border}` : "none", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
-                  {msg.content || (streaming && i === messages.length - 1 ? <span style={{ color: C.textDim }}>▋</span> : "")}
+                <div style={{
+                  fontSize: 11, color: C.textDim, marginBottom: 4,
+                  fontWeight: 500, letterSpacing: "-0.01em",
+                }}>{msg.role === "user" ? t.chatYou : selectedModel}</div>
+                <div style={{
+                  maxWidth: "80%", padding: "10px 14px", borderRadius: 14,
+                  fontSize: 14, lineHeight: 1.65,
+                  background: msg.role === "user" ? C.blue : C.bgInput,
+                  color: msg.role === "user" ? "#fff" : C.text,
+                  whiteSpace: "pre-wrap", wordBreak: "break-word",
+                  letterSpacing: "-0.01em",
+                }}>
+                  {msg.content || (streaming && i === messages.length - 1
+                    ? <span style={{ display: "inline-block", width: 2, height: 15, background: C.blue, borderRadius: 1, animation: "blink 1s step-start infinite", verticalAlign: "middle" }} />
+                    : "")}
                 </div>
               </div>
             ))}
-            {error && <div style={{ background: C.orangeDark, border: `1px solid ${C.orange}`, borderRadius: 8, padding: "9px 13px", fontSize: 13, color: C.orange }}>⚠️ {error}</div>}
+            {error && (
+              <div style={{
+                background: `${C.red}10`, borderRadius: 10, padding: "10px 14px",
+                fontSize: 13, color: C.red, letterSpacing: "-0.01em",
+              }}>{error}</div>
+            )}
             <div ref={messagesEndRef} />
           </div>
 
-          <div style={{ padding: "10px 14px", borderTop: `1px solid ${C.border}`, display: "flex", gap: 8, alignItems: "flex-end" }}>
-            <textarea value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={handleKeyDown} placeholder={t.chatPlaceholder} rows={1} disabled={streaming} style={{ flex: 1, background: C.bgInput, border: `1px solid ${C.border}`, borderRadius: 8, padding: "9px 12px", fontSize: 14, color: C.text, outline: "none", resize: "none", fontFamily: "inherit", lineHeight: 1.5, maxHeight: 120, overflowY: "auto", opacity: streaming ? 0.6 : 1 }} />
-            <button onClick={sendMessage} disabled={!input.trim() || streaming} style={{ background: `linear-gradient(135deg, ${C.gradientA}, ${C.gradientB})`, border: "none", borderRadius: 8, padding: "9px 16px", fontSize: 14, fontWeight: 700, color: "#fff", cursor: !input.trim() || streaming ? "not-allowed" : "pointer", opacity: !input.trim() || streaming ? 0.5 : 1, transition: "opacity 0.2s", whiteSpace: "nowrap" }}>
-              {t.sendBtn}
-            </button>
+          {/* Input bar */}
+          <div style={{
+            padding: "12px 16px", borderTop: `1px solid ${C.border}`,
+            display: "flex", gap: 10, alignItems: "flex-end",
+          }}>
+            <textarea
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder={t.chatPlaceholder}
+              rows={1}
+              disabled={streaming}
+              style={{
+                flex: 1, background: C.bgInput, border: "none",
+                borderRadius: 10, padding: "10px 14px", fontSize: 14,
+                color: C.text, outline: "none", resize: "none",
+                fontFamily: "inherit", lineHeight: 1.5, maxHeight: 120,
+                overflowY: "auto", opacity: streaming ? 0.5 : 1,
+                letterSpacing: "-0.01em",
+              }}
+            />
+            <button
+              onClick={sendMessage}
+              disabled={!input.trim() || streaming}
+              style={{
+                background: !input.trim() || streaming ? C.bgInput : C.blue,
+                border: "none", borderRadius: 10, padding: "10px 18px",
+                fontSize: 14, fontWeight: 500, color: !input.trim() || streaming ? C.textDim : "#fff",
+                cursor: !input.trim() || streaming ? "not-allowed" : "pointer",
+                transition: "all 0.18s", whiteSpace: "nowrap", letterSpacing: "-0.01em",
+              }}
+            >{t.sendBtn}</button>
           </div>
-        </Card>
+        </div>
       </div>
     </div>
   );
 }
 
+/* ─────────────────────────────────────────────
+   Settings Tab
+───────────────────────────────────────────── */
 function SettingsTab({ C, t, adminToken, proxyApiKey, openaiDirectKeySet, openaiDirectKeyFromEnv, onProxyKeyChange, onOAIKeyChange }: {
   C: Record<string, string>; t: TType; adminToken: string; proxyApiKey: string;
   openaiDirectKeySet: boolean; openaiDirectKeyFromEnv: boolean;
@@ -609,62 +858,86 @@ function SettingsTab({ C, t, adminToken, proxyApiKey, openaiDirectKeySet, openai
       const res = await fetch("/api/config/settings", { method: "POST", headers: { "Content-Type": "application/json", "Authorization": `Bearer ${adminToken}` }, body: JSON.stringify({ openaiDirectKey: keyValue }) });
       if (res.ok) {
         const d = await res.json() as { openaiDirectKeySet: boolean };
-        onOAIKeyChange(d.openaiDirectKeySet);
-        setOaiKey("");
-        setOaiMsg(keyValue ? t.savedOk : "✓ Cleared");
-        setTimeout(() => setOaiMsg(""), 3000);
+        onOAIKeyChange(d.openaiDirectKeySet); setOaiKey("");
+        setOaiMsg(keyValue ? t.savedOk : "Cleared"); setTimeout(() => setOaiMsg(""), 3000);
       } else setOaiMsg(t.saveFail);
     } catch { setOaiMsg(t.netError); }
     setSavingOAI(false);
   };
 
-  const msgStyle = (msg: string): React.CSSProperties => ({ fontSize: 13, marginTop: 8, color: msg.startsWith("✓") ? C.green : C.red, fontWeight: 600 });
-  const inp = (extra?: React.CSSProperties): React.CSSProperties => ({ width: "100%", background: C.bgInput, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 14px", fontSize: 14, color: C.text, outline: "none", boxSizing: "border-box" as const, ...extra });
-  const lbl: React.CSSProperties = { display: "block", fontSize: 12, fontWeight: 700, color: C.textDim, marginBottom: 8, textTransform: "uppercase" as const, letterSpacing: "0.07em" };
+  const inp = (extra?: React.CSSProperties): React.CSSProperties => ({
+    width: "100%", background: C.bgInput, border: "none",
+    borderRadius: 10, padding: "10px 14px", fontSize: 14, color: C.text,
+    outline: "none", boxSizing: "border-box" as const, letterSpacing: "-0.01em",
+    ...extra,
+  });
+  const lbl: React.CSSProperties = {
+    display: "block", fontSize: 12, fontWeight: 500, color: C.textMuted,
+    marginBottom: 8, letterSpacing: "-0.01em",
+  };
+  const msgColor = (msg: string) => msg === t.savedOk || msg === "Cleared" || msg === t.pwdUpdated ? C.green : C.red;
+
+  const PrimaryBtn = ({ onClick, disabled, children }: { onClick: () => void; disabled: boolean; children: React.ReactNode }) => (
+    <button onClick={onClick} disabled={disabled} style={{
+      background: disabled ? C.bgInput : C.blue,
+      border: "none", borderRadius: 10, padding: "10px 20px",
+      fontSize: 14, fontWeight: 500, color: disabled ? C.textDim : "#fff",
+      cursor: disabled ? "not-allowed" : "pointer", transition: "all 0.18s",
+      letterSpacing: "-0.01em",
+    }}>{children}</button>
+  );
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 24, maxWidth: 540 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 24, maxWidth: 560 }}>
       <Section title={t.settingsKeyTitle} C={C}>
         <Card C={C}>
-          <p style={{ fontSize: 13, color: C.textMuted, marginBottom: 16, marginTop: 0 }}>{t.settingsKeyDesc}</p>
-          <div style={{ marginBottom: 14 }}>
+          <p style={{ fontSize: 14, color: C.textMuted, marginBottom: 18, marginTop: 0, letterSpacing: "-0.01em", lineHeight: 1.6 }}>{t.settingsKeyDesc}</p>
+          <div style={{ marginBottom: 16 }}>
             <label style={lbl}>{t.settingsKeyLabel}</label>
-            <input type="text" value={newKey} onChange={(e) => setNewKey(e.target.value)} style={{ ...inp(), color: C.cyan, fontFamily: "monospace" }} />
+            <input type="text" value={newKey} onChange={(e) => setNewKey(e.target.value)} style={{ ...inp(), fontFamily: "'SF Mono','Fira Code',monospace", fontSize: 13 }} />
           </div>
-          <button onClick={saveKey} disabled={savingKey || !newKey.trim() || newKey.trim() === proxyApiKey} style={{ background: `linear-gradient(135deg, ${C.gradientA}, ${C.gradientB})`, border: "none", borderRadius: 8, padding: "9px 20px", fontSize: 13, fontWeight: 700, color: "#fff", cursor: savingKey || !newKey.trim() || newKey.trim() === proxyApiKey ? "not-allowed" : "pointer", opacity: savingKey || !newKey.trim() || newKey.trim() === proxyApiKey ? 0.6 : 1 }}>
+          <PrimaryBtn onClick={saveKey} disabled={savingKey || !newKey.trim() || newKey.trim() === proxyApiKey}>
             {savingKey ? t.saving : t.saveKeyBtn}
-          </button>
-          {keyMsg && <div style={msgStyle(keyMsg)}>{keyMsg}</div>}
+          </PrimaryBtn>
+          {keyMsg && <div style={{ fontSize: 13, marginTop: 10, color: msgColor(keyMsg), letterSpacing: "-0.01em" }}>{keyMsg}</div>}
         </Card>
       </Section>
 
       <Section title={t.settingsOAIKeyTitle} C={C}>
         <Card C={C}>
-          <p style={{ fontSize: 13, color: C.textMuted, marginBottom: 16, marginTop: 0 }}>{t.settingsOAIKeyDesc}</p>
+          <p style={{ fontSize: 14, color: C.textMuted, marginBottom: 18, marginTop: 0, letterSpacing: "-0.01em", lineHeight: 1.6 }}>{t.settingsOAIKeyDesc}</p>
           {openaiDirectKeyFromEnv ? (
-            <div style={{ fontSize: 13, color: C.green, background: C.emeraldDark, border: `1px solid ${C.green}`, borderRadius: 8, padding: "10px 14px" }}>{t.settingsOAIKeyFromEnv}</div>
+            <div style={{ fontSize: 13, color: C.green, background: C.emeraldDark, borderRadius: 8, padding: "10px 14px", letterSpacing: "-0.01em" }}>{t.settingsOAIKeyFromEnv}</div>
           ) : (
             <>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
-                <span style={{ fontSize: 12, fontWeight: 700, color: openaiDirectKeySet ? C.green : C.textDim, background: openaiDirectKeySet ? C.emeraldDark : C.grayDark, border: `1px solid ${openaiDirectKeySet ? C.green : C.border}`, borderRadius: 6, padding: "3px 10px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
+                <span style={{
+                  fontSize: 11, fontWeight: 500,
+                  color: openaiDirectKeySet ? C.green : C.textDim,
+                  background: openaiDirectKeySet ? C.emeraldDark : C.bgInput,
+                  borderRadius: 6, padding: "3px 10px", letterSpacing: "0.02em",
+                }}>
                   {openaiDirectKeySet ? t.settingsOAIKeySet : t.settingsOAIKeyUnset}
                 </span>
               </div>
-              <div style={{ marginBottom: 14 }}>
+              <div style={{ marginBottom: 16 }}>
                 <label style={lbl}>{t.settingsOAIKeyLabel}</label>
-                <input type="password" value={oaiKey} onChange={(e) => setOaiKey(e.target.value)} placeholder={t.settingsOAIKeyPlaceholder} style={{ ...inp(), fontFamily: "monospace" }} />
+                <input type="password" value={oaiKey} onChange={(e) => setOaiKey(e.target.value)} placeholder={t.settingsOAIKeyPlaceholder} style={{ ...inp(), fontFamily: "'SF Mono','Fira Code',monospace", fontSize: 13 }} />
               </div>
               <div style={{ display: "flex", gap: 10 }}>
-                <button onClick={() => saveOAIKey(oaiKey)} disabled={savingOAI || !oaiKey.trim()} style={{ background: `linear-gradient(135deg, ${C.gradientA}, ${C.gradientB})`, border: "none", borderRadius: 8, padding: "9px 20px", fontSize: 13, fontWeight: 700, color: "#fff", cursor: savingOAI || !oaiKey.trim() ? "not-allowed" : "pointer", opacity: savingOAI || !oaiKey.trim() ? 0.6 : 1 }}>
+                <PrimaryBtn onClick={() => saveOAIKey(oaiKey)} disabled={savingOAI || !oaiKey.trim()}>
                   {savingOAI ? t.saving : t.saveKeyBtn}
-                </button>
+                </PrimaryBtn>
                 {openaiDirectKeySet && (
-                  <button onClick={() => saveOAIKey("")} disabled={savingOAI} style={{ background: C.bgInput, border: `1px solid ${C.border}`, borderRadius: 8, padding: "9px 16px", fontSize: 13, color: C.red, cursor: savingOAI ? "not-allowed" : "pointer", fontWeight: 600 }}>
-                    {t.settingsOAIKeyClear}
-                  </button>
+                  <button onClick={() => saveOAIKey("")} disabled={savingOAI} style={{
+                    background: "transparent", border: "none",
+                    borderRadius: 10, padding: "10px 16px", fontSize: 14,
+                    color: C.red, cursor: savingOAI ? "not-allowed" : "pointer",
+                    fontWeight: 500, letterSpacing: "-0.01em",
+                  }}>{t.settingsOAIKeyClear}</button>
                 )}
               </div>
-              {oaiMsg && <div style={msgStyle(oaiMsg)}>{oaiMsg}</div>}
+              {oaiMsg && <div style={{ fontSize: 13, marginTop: 10, color: msgColor(oaiMsg), letterSpacing: "-0.01em" }}>{oaiMsg}</div>}
             </>
           )}
         </Card>
@@ -672,27 +945,30 @@ function SettingsTab({ C, t, adminToken, proxyApiKey, openaiDirectKeySet, openai
 
       <Section title={t.settingsPwdTitle} C={C}>
         <Card C={C}>
-          <p style={{ fontSize: 13, color: C.textMuted, marginBottom: 16, marginTop: 0 }}>{t.settingsPwdDesc}</p>
-          <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 14 }}>
+          <p style={{ fontSize: 14, color: C.textMuted, marginBottom: 18, marginTop: 0, letterSpacing: "-0.01em", lineHeight: 1.6 }}>{t.settingsPwdDesc}</p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 16 }}>
             <div><label style={lbl}>{t.newPwdLabel}</label><input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder={t.newPwdPlaceholder} style={inp()} /></div>
             <div><label style={lbl}>{t.confirmPwdLabel}</label><input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder={t.confirmPwdPlaceholder} style={inp()} /></div>
           </div>
-          <button onClick={savePassword} disabled={savingPwd || !newPassword.trim()} style={{ background: C.bgInput, border: `1px solid ${C.border}`, borderRadius: 8, padding: "9px 20px", fontSize: 13, fontWeight: 700, color: C.text, cursor: savingPwd || !newPassword.trim() ? "not-allowed" : "pointer", opacity: savingPwd || !newPassword.trim() ? 0.6 : 1 }}>
+          <PrimaryBtn onClick={savePassword} disabled={savingPwd || !newPassword.trim()}>
             {savingPwd ? t.saving : t.updatePwdBtn}
-          </button>
-          {pwdMsg && <div style={msgStyle(pwdMsg)}>{pwdMsg}</div>}
+          </PrimaryBtn>
+          {pwdMsg && <div style={{ fontSize: 13, marginTop: 10, color: msgColor(pwdMsg), letterSpacing: "-0.01em" }}>{pwdMsg}</div>}
         </Card>
       </Section>
     </div>
   );
 }
 
+/* ─────────────────────────────────────────────
+   Models Tab
+───────────────────────────────────────────── */
 const CAP_LABEL: Record<Cap, { label: string; color: string }> = {
-  stream:    { label: "Streaming",  color: "hsl(185,80%,55%)" },
-  tools:     { label: "Tool Calls", color: "hsl(270,70%,65%)" },
-  vision:    { label: "Vision",     color: "hsl(142,65%,50%)" },
-  reasoning: { label: "Reasoning",  color: "hsl(30,90%,60%)"  },
-  json:      { label: "JSON Mode",  color: "hsl(210,80%,60%)" },
+  stream:    { label: "Streaming",  color: "hsl(185,65%,45%)" },
+  tools:     { label: "Tool Calls", color: "hsl(270,55%,55%)" },
+  vision:    { label: "Vision",     color: "hsl(142,50%,40%)" },
+  reasoning: { label: "Reasoning",  color: "hsl(30,75%,48%)"  },
+  json:      { label: "JSON Mode",  color: "hsl(210,65%,48%)" },
 };
 
 type SyncedModelEntry = { id: string; provider: string; contextLength?: number; ownedBy?: string; name?: string };
@@ -735,36 +1011,24 @@ function ModelsTab({ C, t, onGoChat, adminToken }: { C: Record<string, string>; 
   const [filterProvider, setFilterProvider] = useState<string | null>(null);
 
   const handleSync = async () => {
-    setSyncing(true);
-    setSyncError("");
+    setSyncing(true); setSyncError("");
     try {
-      const r = await fetch("/api/sync-models", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${adminToken}`, "Content-Type": "application/json" },
-      });
+      const r = await fetch("/api/sync-models", { method: "POST", headers: { Authorization: `Bearer ${adminToken}`, "Content-Type": "application/json" } });
       const d = await r.json() as SyncData;
       if (!d.ok) throw new Error("Sync failed");
-      setSyncData(d);
-      setActiveView("live");
-    } catch (e: unknown) {
-      setSyncError(String(e));
-    } finally {
-      setSyncing(false);
-    }
+      setSyncData(d); setActiveView("live");
+    } catch (e: unknown) { setSyncError(String(e)); }
+    finally { setSyncing(false); }
   };
 
   const allLiveModels: SyncedModelEntry[] = syncData?.results.flatMap((r) => r.models) ?? [];
-  const allLiveFiltered = filterProvider
-    ? allLiveModels.filter((m) => m.provider === filterProvider)
-    : allLiveModels;
+  const allLiveFiltered = filterProvider ? allLiveModels.filter((m) => m.provider === filterProvider) : allLiveModels;
   const filteredLive = search.trim()
     ? allLiveFiltered.filter((m) => m.id.toLowerCase().includes(search.toLowerCase()) || (m.name ?? "").toLowerCase().includes(search.toLowerCase()))
     : allLiveFiltered;
 
   const liveByProvider = syncData?.results ?? [];
-  const visibleLiveByProvider = filterProvider
-    ? liveByProvider.filter((r) => r.provider === filterProvider)
-    : liveByProvider;
+  const visibleLiveByProvider = filterProvider ? liveByProvider.filter((r) => r.provider === filterProvider) : liveByProvider;
 
   const orBySubprovider: Record<string, SyncedModelEntry[]> = {};
   const orResult = liveByProvider.find((r) => r.provider === "openrouter");
@@ -774,37 +1038,48 @@ function ModelsTab({ C, t, onGoChat, adminToken }: { C: Record<string, string>; 
   });
   const orSubProviders = Object.entries(orBySubprovider).sort((a, b) => b[1].length - a[1].length);
 
+  const TestBtn = ({ modelId }: { modelId: string }) => (
+    <button onClick={() => onGoChat(modelId)} style={{
+      background: C.blue, border: "none", borderRadius: 7,
+      padding: "4px 12px", fontSize: 11, fontWeight: 500, color: "#fff",
+      cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0,
+      letterSpacing: "-0.01em", transition: "opacity 0.15s",
+    }}>Test</button>
+  );
+
   return (
     <div>
-      {/* ── Sync toolbar ── */}
-      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
+      {/* Toolbar */}
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24, flexWrap: "wrap" }}>
         <button
-          onClick={handleSync}
-          disabled={syncing}
+          onClick={handleSync} disabled={syncing}
           style={{
-            background: syncing ? C.bgInput : `linear-gradient(135deg, ${C.gradientA}, ${C.gradientB})`,
-            border: "none", borderRadius: 8, padding: "8px 18px", fontSize: 13, fontWeight: 700,
-            color: syncing ? C.textMuted : "#fff", cursor: syncing ? "not-allowed" : "pointer",
-            display: "flex", alignItems: "center", gap: 7, transition: "all 0.15s",
+            background: syncing ? C.bgInput : C.blue,
+            border: "none", borderRadius: 10, padding: "9px 18px",
+            fontSize: 13, fontWeight: 500, color: syncing ? C.textDim : "#fff",
+            cursor: syncing ? "not-allowed" : "pointer",
+            display: "flex", alignItems: "center", gap: 7,
+            transition: "all 0.18s", letterSpacing: "-0.01em",
           }}
-        >
-          {syncing ? "⟳ 同步中…" : "⟳ 一键同步所有模型"}
-        </button>
+        >{syncing ? "同步中…" : "一键同步所有模型"}</button>
+
         {syncData && (
           <>
-            <div style={{ display: "flex", gap: 4 }}>
+            <div style={{ display: "flex", background: C.bgInput, borderRadius: 10, overflow: "hidden", padding: 3, gap: 2 }}>
               {(["static", "live"] as const).map((v) => (
                 <button key={v} onClick={() => { setActiveView(v); setFilterProvider(null); }} style={{
-                  background: activeView === v ? C.bgInput : "transparent",
-                  border: `1px solid ${activeView === v ? C.border : "transparent"}`,
-                  borderRadius: 6, padding: "4px 12px", fontSize: 12, fontWeight: 600,
+                  background: activeView === v ? C.bgCard : "transparent",
+                  border: "none", borderRadius: 7, padding: "5px 14px",
+                  fontSize: 12, fontWeight: activeView === v ? 500 : 400,
                   color: activeView === v ? C.text : C.textMuted, cursor: "pointer",
+                  boxShadow: activeView === v ? C.shadow : "none",
+                  transition: "all 0.18s", letterSpacing: "-0.01em",
                 }}>
-                  {v === "static" ? `精选 (${ALL_MODELS.length})` : `实时 (${allLiveModels.length})`}
+                  {v === "static" ? `精选 ${ALL_MODELS.length}` : `实时 ${allLiveModels.length}`}
                 </button>
               ))}
             </div>
-            <span style={{ fontSize: 12, color: C.textDim }}>
+            <span style={{ fontSize: 12, color: C.textDim, letterSpacing: "-0.01em" }}>
               同步于 {new Date(syncData.syncedAt).toLocaleTimeString()}
             </span>
           </>
@@ -812,63 +1087,71 @@ function ModelsTab({ C, t, onGoChat, adminToken }: { C: Record<string, string>; 
         {syncError && <span style={{ fontSize: 12, color: C.red }}>{syncError}</span>}
       </div>
 
-      {/* ── STATIC view ── */}
+      {/* STATIC view */}
       {activeView === "static" && (
         <div>
-          <div style={{ display: "flex", gap: 12, marginBottom: 28, flexWrap: "wrap" }}>
+          {/* Filter pills */}
+          <div style={{ display: "flex", gap: 10, marginBottom: 28, flexWrap: "wrap" }}>
             {[
-              { label: "精选合计", value: ALL_MODELS.length, color: C.text, key: null },
-              { label: "OpenAI",   value: OPENAI_MODELS.length,    color: C.blue,    key: "openai" },
-              { label: "Anthropic",value: ANTHROPIC_MODELS.length, color: C.orange,  key: "anthropic" },
-              { label: "Gemini",   value: GEMINI_MODELS.length,    color: C.emerald, key: "gemini" },
-              { label: "OpenRouter",value: OPENROUTER_MODELS.length,color: C.purple, key: "openrouter" },
+              { label: "全部", value: ALL_MODELS.length, color: C.text, key: null },
+              { label: "OpenAI",    value: OPENAI_MODELS.length,    color: C.blue,    key: "openai" },
+              { label: "Anthropic", value: ANTHROPIC_MODELS.length, color: C.orange,  key: "anthropic" },
+              { label: "Gemini",    value: GEMINI_MODELS.length,    color: C.emerald, key: "gemini" },
+              { label: "OpenRouter",value: OPENROUTER_MODELS.length,color: C.purple,  key: "openrouter" },
             ].map((s) => {
               const isActive = filterProvider === s.key;
               return (
-                <div key={s.label}
+                <div
+                  key={s.label}
                   onClick={() => setFilterProvider(isActive ? null : s.key)}
-                  style={{ background: isActive ? `${s.color}15` : C.bgCard, border: `2px solid ${isActive ? s.color : C.border}`, borderRadius: 10, padding: "12px 20px", display: "flex", flexDirection: "column", gap: 4, minWidth: 90, cursor: s.key ? "pointer" : "default", transition: "all 0.15s" }}
-                  onMouseEnter={(e) => { if (s.key) e.currentTarget.style.borderColor = s.color; }}
-                  onMouseLeave={(e) => { if (!isActive && s.key) e.currentTarget.style.borderColor = C.border; }}
+                  style={{
+                    background: C.bgCard,
+                    borderRadius: 12, padding: "14px 20px",
+                    display: "flex", flexDirection: "column", gap: 4, minWidth: 88,
+                    cursor: s.key ? "pointer" : "default",
+                    boxShadow: isActive ? `0 0 0 2px ${s.color}, ${C.shadow}` : C.shadow,
+                    transition: "box-shadow 0.18s",
+                  }}
                 >
-                  <div style={{ fontSize: 22, fontWeight: 800, color: s.color, fontFamily: "monospace" }}>{s.value}</div>
-                  <div style={{ fontSize: 12, color: isActive ? s.color : C.textMuted, fontWeight: 600 }}>{s.label}</div>
+                  <div style={{ fontSize: 24, fontWeight: 600, color: s.color, fontFamily: "'SF Mono','Fira Code',monospace", letterSpacing: "-0.03em" }}>{s.value}</div>
+                  <div style={{ fontSize: 12, color: isActive ? s.color : C.textMuted, fontWeight: 500, letterSpacing: "-0.01em" }}>{s.label}</div>
                 </div>
               );
             })}
           </div>
 
           {(filterProvider ? staticGroups.filter((g) => g.provider.toLowerCase() === filterProvider) : staticGroups).map(({ provider, color, bg, models }) => (
-            <div key={provider} style={{ marginBottom: 32 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
-                <div style={{ width: 4, height: 22, borderRadius: 2, background: color, flexShrink: 0 }} />
-                <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: C.text }}>{provider}</h2>
-                <span style={{ background: bg, color, borderRadius: 20, padding: "2px 10px", fontSize: 12, fontWeight: 700 }}>{models.length} models</span>
+            <div key={provider} style={{ marginBottom: 36 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+                <div style={{ width: 3, height: 20, borderRadius: 2, background: color, flexShrink: 0 }} />
+                <h3 style={{ margin: 0, fontSize: 17, fontWeight: 600, color: C.text, letterSpacing: "-0.025em" }}>{provider}</h3>
+                <span style={{ background: bg, color, borderRadius: 20, padding: "2px 10px", fontSize: 11, fontWeight: 600, letterSpacing: "0.02em" }}>{models.length} models</span>
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 12 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 10 }}>
                 {models.map((m) => (
-                  <div key={m.id} style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 12, padding: "16px 18px", display: "flex", flexDirection: "column", gap: 10, transition: "border-color 0.15s" }}
-                    onMouseEnter={(e) => (e.currentTarget.style.borderColor = color)}
-                    onMouseLeave={(e) => (e.currentTarget.style.borderColor = C.border)}>
+                  <div
+                    key={m.id}
+                    style={{ background: C.bgCard, borderRadius: 14, padding: "16px 18px", display: "flex", flexDirection: "column", gap: 10, boxShadow: C.shadow, transition: "box-shadow 0.18s" }}
+                    onMouseEnter={(e) => (e.currentTarget.style.boxShadow = C.shadowHover)}
+                    onMouseLeave={(e) => (e.currentTarget.style.boxShadow = C.shadow)}
+                  >
                     <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
-                      <code style={{ fontSize: 13, fontFamily: "monospace", color: C.text, fontWeight: 700, wordBreak: "break-all", flex: 1 }}>{m.id}</code>
-                      {m.note && <span style={{ background: bg, color, borderRadius: 4, padding: "2px 8px", fontSize: 11, fontWeight: 700, whiteSpace: "nowrap", flexShrink: 0 }}>{m.note}</span>}
+                      <code style={{ fontSize: 13, fontFamily: "'SF Mono','Fira Code',monospace", color: C.text, fontWeight: 500, wordBreak: "break-all", flex: 1, letterSpacing: "-0.01em" }}>{m.id}</code>
+                      {m.note && <span style={{ background: bg, color, borderRadius: 5, padding: "2px 8px", fontSize: 10, fontWeight: 600, whiteSpace: "nowrap", flexShrink: 0, letterSpacing: "0.02em" }}>{m.note}</span>}
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <span style={{ fontSize: 11, color: C.textDim, fontWeight: 600 }}>Context</span>
-                      <span style={{ background: C.bgInput, border: `1px solid ${C.border}`, borderRadius: 4, padding: "1px 8px", fontSize: 12, fontFamily: "monospace", color: C.cyan, fontWeight: 700 }}>{m.ctx}</span>
+                      <span style={{ fontSize: 11, color: C.textDim, fontWeight: 500 }}>Context</span>
+                      <span style={{ background: C.bgInput, borderRadius: 5, padding: "1px 8px", fontSize: 11, fontFamily: "'SF Mono','Fira Code',monospace", color: C.blue, fontWeight: 600 }}>{m.ctx}</span>
                     </div>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
                       {m.caps.map((cap) => {
                         const meta = CAP_LABEL[cap];
-                        return <span key={cap} style={{ fontSize: 11, color: meta.color, background: `${meta.color}18`, border: `1px solid ${meta.color}40`, borderRadius: 4, padding: "2px 7px", fontWeight: 600 }}>{meta.label}</span>;
+                        return <span key={cap} style={{ fontSize: 10, color: meta.color, background: `${meta.color}15`, borderRadius: 5, padding: "2px 8px", fontWeight: 600, letterSpacing: "0.02em" }}>{meta.label}</span>;
                       })}
                     </div>
                     <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 10, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
-                      <code style={{ fontSize: 11, color: C.textDim, fontFamily: "monospace", flex: 1, minWidth: 0, wordBreak: "break-all" }}>{m.route}</code>
-                      <button onClick={() => onGoChat(m.id)} style={{ background: `linear-gradient(135deg, ${C.gradientA}, ${C.gradientB})`, border: "none", borderRadius: 6, padding: "4px 12px", fontSize: 12, fontWeight: 700, color: "#fff", cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0 }}>
-                        {t.tabChat} →
-                      </button>
+                      <code style={{ fontSize: 10, color: C.textDim, fontFamily: "'SF Mono','Fira Code',monospace", flex: 1, minWidth: 0, wordBreak: "break-all" }}>{m.route}</code>
+                      <TestBtn modelId={m.id} />
                     </div>
                   </div>
                 ))}
@@ -878,17 +1161,23 @@ function ModelsTab({ C, t, onGoChat, adminToken }: { C: Record<string, string>; 
         </div>
       )}
 
-      {/* ── LIVE view ── */}
+      {/* LIVE view */}
       {activeView === "live" && syncData && (
         <div>
-          {/* Live stats */}
-          <div style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
+          {/* Provider filter pills */}
+          <div style={{ display: "flex", gap: 10, marginBottom: 20, flexWrap: "wrap" }}>
             <div
               onClick={() => setFilterProvider(null)}
-              style={{ background: filterProvider === null ? `${C.text}10` : C.bgCard, border: `2px solid ${filterProvider === null ? C.text : C.border}`, borderRadius: 10, padding: "12px 20px", display: "flex", flexDirection: "column", gap: 4, minWidth: 90, cursor: "pointer", transition: "all 0.15s" }}
+              style={{
+                background: C.bgCard, borderRadius: 12, padding: "14px 20px",
+                display: "flex", flexDirection: "column", gap: 4, minWidth: 88,
+                cursor: "pointer",
+                boxShadow: filterProvider === null ? `0 0 0 2px ${C.text}, ${C.shadow}` : C.shadow,
+                transition: "box-shadow 0.18s",
+              }}
             >
-              <div style={{ fontSize: 22, fontWeight: 800, color: C.text, fontFamily: "monospace" }}>{allLiveModels.length}</div>
-              <div style={{ fontSize: 12, color: filterProvider === null ? C.text : C.textMuted, fontWeight: 600 }}>合计</div>
+              <div style={{ fontSize: 24, fontWeight: 600, color: C.text, fontFamily: "'SF Mono','Fira Code',monospace", letterSpacing: "-0.03em" }}>{allLiveModels.length}</div>
+              <div style={{ fontSize: 12, color: filterProvider === null ? C.text : C.textMuted, fontWeight: 500, letterSpacing: "-0.01em" }}>合计</div>
             </div>
             {liveByProvider.map((r) => {
               const color = providerColorOf(C, r.provider);
@@ -896,18 +1185,26 @@ function ModelsTab({ C, t, onGoChat, adminToken }: { C: Record<string, string>; 
               const isLive = r.source === "live";
               const isActive = filterProvider === r.provider;
               return (
-                <div key={r.provider}
+                <div
+                  key={r.provider}
                   onClick={() => setFilterProvider(isActive ? null : r.provider)}
-                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = color; }}
-                  onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.borderColor = C.border; }}
-                  style={{ background: isActive ? `${color}15` : C.bgCard, border: `2px solid ${isActive ? color : C.border}`, borderRadius: 10, padding: "12px 20px", display: "flex", flexDirection: "column", gap: 4, minWidth: 90, cursor: "pointer", transition: "all 0.15s" }}
+                  style={{
+                    background: C.bgCard, borderRadius: 12, padding: "14px 20px",
+                    display: "flex", flexDirection: "column", gap: 4, minWidth: 88,
+                    cursor: "pointer",
+                    boxShadow: isActive ? `0 0 0 2px ${color}, ${C.shadow}` : C.shadow,
+                    transition: "box-shadow 0.18s",
+                  }}
                 >
-                  <div style={{ fontSize: 22, fontWeight: 800, color, fontFamily: "monospace" }}>{r.count}</div>
-                  <div style={{ fontSize: 12, color: isActive ? color : C.textMuted, fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}>
+                  <div style={{ fontSize: 24, fontWeight: 600, color, fontFamily: "'SF Mono','Fira Code',monospace", letterSpacing: "-0.03em" }}>{r.count}</div>
+                  <div style={{ fontSize: 12, color: isActive ? color : C.textMuted, fontWeight: 500, letterSpacing: "-0.01em", display: "flex", alignItems: "center", gap: 5 }}>
                     {label}
-                    <span style={{ fontSize: 10, fontWeight: 700, padding: "1px 5px", borderRadius: 3, background: isLive ? `${C.emerald}20` : C.bgInput, color: isLive ? C.emerald : C.textDim, border: `1px solid ${isLive ? C.emerald : C.border}40` }}>
-                      {isLive ? "live" : "static"}
-                    </span>
+                    <span style={{
+                      fontSize: 9, fontWeight: 600, padding: "1px 5px", borderRadius: 3,
+                      background: isLive ? `${C.green}20` : C.bgInput,
+                      color: isLive ? C.green : C.textDim,
+                      letterSpacing: "0.04em",
+                    }}>{isLive ? "live" : "static"}</span>
                   </div>
                 </div>
               );
@@ -919,30 +1216,34 @@ function ModelsTab({ C, t, onGoChat, adminToken }: { C: Record<string, string>; 
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="搜索模型 ID 或名称…"
-            style={{ width: "100%", boxSizing: "border-box", background: C.bgInput, border: `1px solid ${C.border}`, borderRadius: 8, padding: "8px 14px", fontSize: 13, color: C.text, marginBottom: 20, outline: "none" }}
+            style={{
+              width: "100%", boxSizing: "border-box",
+              background: C.bgCard, border: "none", borderRadius: 10,
+              padding: "10px 16px", fontSize: 14, color: C.text,
+              marginBottom: 20, outline: "none", letterSpacing: "-0.01em",
+              boxShadow: C.shadow,
+            }}
           />
 
           {search.trim() ? (
-            /* Search results as flat list */
             <div>
-              <div style={{ fontSize: 12, color: C.textDim, marginBottom: 10 }}>找到 {filteredLive.length} 个匹配模型</div>
+              <div style={{ fontSize: 12, color: C.textDim, marginBottom: 10, letterSpacing: "-0.01em" }}>找到 {filteredLive.length} 个匹配模型</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 {filteredLive.map((m) => {
                   const color = providerColorOf(C, m.provider);
                   const bg = providerBgOf(C, m.provider);
                   return (
-                    <div key={m.id} style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 14px", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                      <span style={{ background: bg, color, borderRadius: 4, padding: "2px 8px", fontSize: 11, fontWeight: 700, whiteSpace: "nowrap", flexShrink: 0 }}>{m.provider}</span>
-                      <code style={{ fontSize: 13, fontFamily: "monospace", color: C.text, fontWeight: 600, flex: 1, minWidth: 0, wordBreak: "break-all" }}>{m.id}</code>
-                      {m.contextLength && <span style={{ fontSize: 11, color: C.cyan, fontFamily: "monospace", whiteSpace: "nowrap" }}>{fmtCtx(m.contextLength)}</span>}
-                      <button onClick={() => onGoChat(m.id)} style={{ background: `linear-gradient(135deg, ${C.gradientA}, ${C.gradientB})`, border: "none", borderRadius: 5, padding: "3px 10px", fontSize: 11, fontWeight: 700, color: "#fff", cursor: "pointer", flexShrink: 0 }}>Test →</button>
+                    <div key={m.id} style={{ background: C.bgCard, borderRadius: 10, padding: "10px 14px", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", boxShadow: C.shadow }}>
+                      <span style={{ background: bg, color, borderRadius: 5, padding: "2px 8px", fontSize: 10, fontWeight: 600, whiteSpace: "nowrap", flexShrink: 0, letterSpacing: "0.03em" }}>{m.provider}</span>
+                      <code style={{ fontSize: 12, fontFamily: "'SF Mono','Fira Code',monospace", color: C.text, fontWeight: 500, flex: 1, minWidth: 0, wordBreak: "break-all", letterSpacing: "-0.01em" }}>{m.id}</code>
+                      {m.contextLength && <span style={{ fontSize: 11, color: C.blue, fontFamily: "'SF Mono','Fira Code',monospace", whiteSpace: "nowrap" }}>{fmtCtx(m.contextLength)}</span>}
+                      <TestBtn modelId={m.id} />
                     </div>
                   );
                 })}
               </div>
             </div>
           ) : (
-            /* Grouped by provider */
             <div>
               {visibleLiveByProvider.map((result) => {
                 const color = providerColorOf(C, result.provider);
@@ -950,10 +1251,10 @@ function ModelsTab({ C, t, onGoChat, adminToken }: { C: Record<string, string>; 
                 const label = result.provider.charAt(0).toUpperCase() + result.provider.slice(1);
                 if (!result.ok) {
                   return (
-                    <div key={result.provider} style={{ marginBottom: 24, background: C.bgCard, border: `1px solid ${C.red}30`, borderRadius: 10, padding: "14px 18px" }}>
+                    <div key={result.provider} style={{ marginBottom: 20, background: C.bgCard, borderRadius: 12, padding: "14px 18px", boxShadow: C.shadow }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                        <div style={{ width: 4, height: 18, borderRadius: 2, background: C.red, flexShrink: 0 }} />
-                        <span style={{ fontSize: 15, fontWeight: 700, color: C.text }}>{label}</span>
+                        <div style={{ width: 3, height: 16, borderRadius: 2, background: C.red, flexShrink: 0 }} />
+                        <span style={{ fontSize: 15, fontWeight: 600, color: C.text, letterSpacing: "-0.025em" }}>{label}</span>
                         <span style={{ fontSize: 12, color: C.red }}>获取失败: {result.error}</span>
                       </div>
                     </div>
@@ -961,26 +1262,26 @@ function ModelsTab({ C, t, onGoChat, adminToken }: { C: Record<string, string>; 
                 }
                 if (result.provider === "openrouter") {
                   return (
-                    <div key="openrouter" style={{ marginBottom: 32 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
-                        <div style={{ width: 4, height: 22, borderRadius: 2, background: color, flexShrink: 0 }} />
-                        <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: C.text }}>OpenRouter</h2>
-                        <span style={{ background: bg, color, borderRadius: 20, padding: "2px 10px", fontSize: 12, fontWeight: 700 }}>{result.count} models</span>
+                    <div key="openrouter" style={{ marginBottom: 36 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+                        <div style={{ width: 3, height: 20, borderRadius: 2, background: color, flexShrink: 0 }} />
+                        <h3 style={{ margin: 0, fontSize: 17, fontWeight: 600, color: C.text, letterSpacing: "-0.025em" }}>OpenRouter</h3>
+                        <span style={{ background: bg, color, borderRadius: 20, padding: "2px 10px", fontSize: 11, fontWeight: 600, letterSpacing: "0.02em" }}>{result.count} models</span>
                         <span style={{ fontSize: 12, color: C.textDim }}>{orSubProviders.length} 家厂商</span>
                       </div>
                       {orSubProviders.map(([sub, models]) => (
-                        <div key={sub} style={{ marginBottom: 18 }}>
-                          <div style={{ fontSize: 12, fontWeight: 700, color: color, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8, display: "flex", alignItems: "center", gap: 8 }}>
-                            <code>{sub}</code>
-                            <span style={{ background: bg, color, borderRadius: 10, padding: "1px 8px", fontSize: 11 }}>{models.length}</span>
+                        <div key={sub} style={{ marginBottom: 16 }}>
+                          <div style={{ fontSize: 11, fontWeight: 600, color, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 7, display: "flex", alignItems: "center", gap: 8 }}>
+                            <code style={{ fontFamily: "'SF Mono','Fira Code',monospace" }}>{sub}</code>
+                            <span style={{ background: bg, color, borderRadius: 10, padding: "1px 7px", fontSize: 10 }}>{models.length}</span>
                           </div>
                           <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                             {models.map((m) => (
-                              <div key={m.id} style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 7, padding: "8px 12px", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                                <code style={{ fontSize: 12, fontFamily: "monospace", color: C.text, flex: 1, minWidth: 0, wordBreak: "break-all" }}>{m.id}</code>
+                              <div key={m.id} style={{ background: C.bgCard, borderRadius: 9, padding: "8px 12px", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", boxShadow: C.shadow }}>
+                                <code style={{ fontSize: 12, fontFamily: "'SF Mono','Fira Code',monospace", color: C.text, flex: 1, minWidth: 0, wordBreak: "break-all", letterSpacing: "-0.01em" }}>{m.id}</code>
                                 {m.name && m.name !== m.id && <span style={{ fontSize: 11, color: C.textDim, flexShrink: 0 }}>{m.name}</span>}
-                                {m.contextLength && <span style={{ fontSize: 11, color: C.cyan, fontFamily: "monospace", whiteSpace: "nowrap", flexShrink: 0 }}>{fmtCtx(m.contextLength)}</span>}
-                                <button onClick={() => onGoChat(m.id)} style={{ background: `linear-gradient(135deg, ${C.gradientA}, ${C.gradientB})`, border: "none", borderRadius: 5, padding: "2px 8px", fontSize: 11, fontWeight: 700, color: "#fff", cursor: "pointer", flexShrink: 0 }}>Test →</button>
+                                {m.contextLength && <span style={{ fontSize: 11, color: C.blue, fontFamily: "'SF Mono','Fira Code',monospace", whiteSpace: "nowrap", flexShrink: 0 }}>{fmtCtx(m.contextLength)}</span>}
+                                <TestBtn modelId={m.id} />
                               </div>
                             ))}
                           </div>
@@ -990,19 +1291,19 @@ function ModelsTab({ C, t, onGoChat, adminToken }: { C: Record<string, string>; 
                   );
                 }
                 return (
-                  <div key={result.provider} style={{ marginBottom: 28 }}>
+                  <div key={result.provider} style={{ marginBottom: 30 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
-                      <div style={{ width: 4, height: 22, borderRadius: 2, background: color, flexShrink: 0 }} />
-                      <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: C.text }}>{label}</h2>
-                      <span style={{ background: bg, color, borderRadius: 20, padding: "2px 10px", fontSize: 12, fontWeight: 700 }}>{result.count} models</span>
+                      <div style={{ width: 3, height: 20, borderRadius: 2, background: color, flexShrink: 0 }} />
+                      <h3 style={{ margin: 0, fontSize: 17, fontWeight: 600, color: C.text, letterSpacing: "-0.025em" }}>{label}</h3>
+                      <span style={{ background: bg, color, borderRadius: 20, padding: "2px 10px", fontSize: 11, fontWeight: 600, letterSpacing: "0.02em" }}>{result.count} models</span>
                     </div>
                     <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
                       {result.models.map((m) => (
-                        <div key={m.id} style={{ background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 8, padding: "9px 14px", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                          <code style={{ fontSize: 13, fontFamily: "monospace", color: C.text, fontWeight: 600, flex: 1, minWidth: 0, wordBreak: "break-all" }}>{m.id}</code>
+                        <div key={m.id} style={{ background: C.bgCard, borderRadius: 10, padding: "9px 14px", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", boxShadow: C.shadow }}>
+                          <code style={{ fontSize: 12, fontFamily: "'SF Mono','Fira Code',monospace", color: C.text, fontWeight: 500, flex: 1, minWidth: 0, wordBreak: "break-all", letterSpacing: "-0.01em" }}>{m.id}</code>
                           {m.name && m.name !== m.id && <span style={{ fontSize: 11, color: C.textDim, flexShrink: 0 }}>{m.name}</span>}
-                          {m.contextLength && <span style={{ fontSize: 11, color: C.cyan, fontFamily: "monospace", whiteSpace: "nowrap" }}>{fmtCtx(m.contextLength)}</span>}
-                          <button onClick={() => onGoChat(m.id)} style={{ background: `linear-gradient(135deg, ${C.gradientA}, ${C.gradientB})`, border: "none", borderRadius: 5, padding: "3px 10px", fontSize: 11, fontWeight: 700, color: "#fff", cursor: "pointer", flexShrink: 0 }}>Test →</button>
+                          {m.contextLength && <span style={{ fontSize: 11, color: C.blue, fontFamily: "'SF Mono','Fira Code',monospace", whiteSpace: "nowrap" }}>{fmtCtx(m.contextLength)}</span>}
+                          <TestBtn modelId={m.id} />
                         </div>
                       ))}
                     </div>
@@ -1017,15 +1318,18 @@ function ModelsTab({ C, t, onGoChat, adminToken }: { C: Record<string, string>; 
   );
 }
 
+/* ─────────────────────────────────────────────
+   Credits (used inside Dashboard)
+───────────────────────────────────────────── */
 type CreditsResp = {
   total_granted: number; remaining: number; used_this_month: number;
   currency: string; expires_at: string | null; partial: boolean;
 };
+function fmtUsd(n: number): string { return "$" + n.toFixed(2); }
 
-function fmtUsd(n: number): string {
-  return "$" + n.toFixed(2);
-}
-
+/* ─────────────────────────────────────────────
+   Root App
+───────────────────────────────────────────── */
 export default function App() {
   const [dark, setDark] = useState(false);
   const [lang, setLang] = useState<Lang>(() => (localStorage.getItem("portalLang") as Lang) ?? "cn");
@@ -1070,11 +1374,13 @@ export default function App() {
   const handleLogin = (token: string, key: string, oaiSet?: boolean, oaiFromEnv?: boolean) => {
     localStorage.setItem("portalToken", token);
     setAdminToken(token); setProxyApiKey(key);
-    setOpenaiDirectKeySet(oaiSet ?? false);
-    setOpenaiDirectKeyFromEnv(oaiFromEnv ?? false);
+    setOpenaiDirectKeySet(oaiSet ?? false); setOpenaiDirectKeyFromEnv(oaiFromEnv ?? false);
     setAuthed(true);
   };
-  const handleLogout = async () => { await fetch("/api/config/logout", { method: "POST", headers: { "Authorization": `Bearer ${adminToken}` } }).catch(() => {}); localStorage.removeItem("portalToken"); setAdminToken(""); setProxyApiKey(""); setAuthed(false); };
+  const handleLogout = async () => {
+    await fetch("/api/config/logout", { method: "POST", headers: { "Authorization": `Bearer ${adminToken}` } }).catch(() => {});
+    localStorage.removeItem("portalToken"); setAdminToken(""); setProxyApiKey(""); setAuthed(false);
+  };
   const handleForceRelogin = () => { localStorage.removeItem("portalToken"); setAdminToken(""); setProxyApiKey(""); setAuthed(false); };
 
   useEffect(() => {
@@ -1096,15 +1402,25 @@ export default function App() {
     return () => clearInterval(iv);
   }, [authed, adminToken, openaiDirectKeySet]);
 
+  /* Loading screen */
   if (!authChecked) {
-    return <div style={{ minHeight: "100vh", background: C.bg, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Inter', system-ui, sans-serif" }}><div style={{ color: C.textMuted, fontSize: 14 }}>{t.loading}</div></div>;
+    return (
+      <div style={{
+        minHeight: "100vh", background: C.bg,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif",
+      }}>
+        <div style={{ color: C.textDim, fontSize: 14, letterSpacing: "-0.01em" }}>{t.loading}</div>
+      </div>
+    );
   }
 
+  /* Login screen */
   if (!authed) {
     return (
-      <div>
-        <div style={{ position: "absolute", top: 16, right: 16, display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: C.gradientB, background: C.purpleDark, border: `1px solid ${C.purple}`, borderRadius: 6, padding: "2px 7px", letterSpacing: "0.06em", fontFamily: "monospace" }}>v4.1</div>
+      <div style={{ fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif" }}>
+        <div style={{ position: "fixed", top: 16, right: 20, display: "flex", alignItems: "center", gap: 12, zIndex: 100 }}>
+          <span style={{ fontSize: 11, color: C.textDim, fontFamily: "'SF Mono','Fira Code',monospace" }}>v4.1</span>
           <LangToggle lang={lang} setLang={handleSetLang} C={C} />
         </div>
         <LoginPage C={C} t={t} onLogin={handleLogin} />
@@ -1118,43 +1434,110 @@ export default function App() {
   const handleGoChat = (modelId: string) => { setChatInitModel(modelId); setTab("chat"); };
 
   const TABS = [
-    { key: "dashboard" as const, label: t.tabDashboard, icon: "▣" },
-    { key: "chat" as const, label: t.tabChat, icon: "💬" },
-    { key: "models" as const, label: t.tabModels, icon: "◈" },
-    { key: "settings" as const, label: t.tabSettings, icon: "⚙" },
+    { key: "dashboard" as const, label: t.tabDashboard,
+      icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg> },
+    { key: "chat" as const, label: t.tabChat,
+      icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> },
+    { key: "models" as const, label: t.tabModels,
+      icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg> },
+    { key: "settings" as const, label: t.tabSettings,
+      icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> },
   ];
 
-  const HEADER_H = 57;
-
   return (
-    <div style={{ height: "100vh", display: "flex", flexDirection: "column", background: C.bg, color: C.text, fontFamily: "'Inter', system-ui, sans-serif", lineHeight: 1.6, transition: "background 0.2s, color 0.2s" }}>
-      {/* ── Top header ── */}
-      <div style={{ height: HEADER_H, flexShrink: 0, borderBottom: `1px solid ${C.border}`, padding: "0 20px", display: "flex", alignItems: "center", justifyContent: "space-between", background: C.bgCard, zIndex: 10, transition: "background 0.2s, border-color 0.2s" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ width: 32, height: 32, borderRadius: 8, background: `linear-gradient(135deg, ${C.gradientA}, ${C.gradientB})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, flexShrink: 0 }}>⚡</div>
+    <div style={{
+      height: "100vh", display: "flex", flexDirection: "column",
+      background: C.bg, color: C.text,
+      fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', system-ui, sans-serif",
+      lineHeight: 1.6, transition: "background 0.25s, color 0.25s",
+    }}>
+      {/* ── Frosted glass top header ── */}
+      <div style={{
+        height: 57, flexShrink: 0,
+        borderBottom: `1px solid ${C.border}`,
+        padding: "0 20px",
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        background: dark ? "rgba(28,28,30,0.85)" : "rgba(255,255,255,0.85)",
+        backdropFilter: "blur(20px)",
+        WebkitBackdropFilter: "blur(20px)",
+        zIndex: 50, position: "sticky", top: 0,
+      }}>
+        {/* Logo + name */}
+        <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
+          <div style={{
+            width: 30, height: 30, borderRadius: 8, flexShrink: 0,
+            background: `linear-gradient(145deg, ${C.blue} 0%, ${C.purple} 100%)`,
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}>
+            <svg width="15" height="15" viewBox="0 0 28 28" fill="none">
+              <path d="M16 2L6 16h8l-2 10 12-14h-8l2-10z" fill="white" fillOpacity="0.95" />
+            </svg>
+          </div>
           <div>
-            <div style={{ fontWeight: 700, fontSize: 15, color: C.text }}>AI Proxy API</div>
-            <div style={{ fontSize: 11, color: C.textMuted }}>OpenAI · Anthropic · Gemini — reverse proxy · <span style={{ color: C.gradientB, fontWeight: 600 }}>by kilig</span></div>
+            <div style={{ fontWeight: 600, fontSize: 14, color: C.text, letterSpacing: "-0.025em" }}>AI Proxy API</div>
+            <div style={{ fontSize: 10, color: C.textMuted, letterSpacing: "-0.01em" }}>OpenAI · Anthropic · Gemini · OpenRouter</div>
           </div>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: C.gradientB, background: C.purpleDark, border: `1px solid ${C.purple}`, borderRadius: 6, padding: "2px 7px", letterSpacing: "0.06em", fontFamily: "monospace" }}>v4.1</div>
+
+        {/* Right controls */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <span style={{ fontFamily: "'SF Mono','Fira Code',monospace", fontSize: 11, color: C.textDim }}>v4.1</span>
           <StatusDot online={online} C={C} t={t} />
           <LangToggle lang={lang} setLang={handleSetLang} C={C} />
-          <button onClick={() => setDark((d) => !d)} style={{ background: C.bgInput, border: `1px solid ${C.border}`, borderRadius: 8, padding: "5px 10px", fontSize: 17, cursor: "pointer", color: C.text, lineHeight: 1 }}>{dark ? "☀️" : "🌙"}</button>
-          <button onClick={handleLogout} style={{ background: C.bgInput, border: `1px solid ${C.border}`, borderRadius: 8, padding: "5px 12px", fontSize: 13, cursor: "pointer", color: C.textMuted, fontWeight: 500 }}>{t.logout}</button>
+          <button
+            onClick={() => setDark((d) => !d)}
+            style={{
+              background: "transparent", border: "none",
+              borderRadius: 8, padding: "5px 8px", fontSize: 15,
+              cursor: "pointer", color: C.textMuted, lineHeight: 1,
+              transition: "color 0.15s",
+            }}
+          >{dark ? "○" : "●"}</button>
+          <button
+            onClick={handleLogout}
+            style={{
+              background: "transparent", border: "none",
+              borderRadius: 8, padding: "5px 12px",
+              fontSize: 13, cursor: "pointer", color: C.textMuted,
+              fontWeight: 400, letterSpacing: "-0.01em", transition: "color 0.15s",
+            }}
+          >{t.logout}</button>
         </div>
       </div>
 
-      {/* ── Body: sidebar + content ── */}
+      {/* ── Body ── */}
       <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
-        {/* Left sidebar */}
-        <div style={{ width: 180, flexShrink: 0, borderRight: `1px solid ${C.border}`, background: C.bgCard, display: "flex", flexDirection: "column", padding: "16px 10px", gap: 4, overflowY: "auto", transition: "background 0.2s" }}>
+        {/* Left sidebar nav */}
+        <div style={{
+          width: 180, flexShrink: 0,
+          borderRight: `1px solid ${C.border}`,
+          background: dark ? "rgba(28,28,30,0.6)" : "rgba(255,255,255,0.6)",
+          backdropFilter: "blur(10px)",
+          WebkitBackdropFilter: "blur(10px)",
+          display: "flex", flexDirection: "column",
+          padding: "16px 10px", gap: 2, overflowY: "auto",
+        }}>
           {TABS.map((tb) => {
             const active = tab === tb.key;
             return (
-              <button key={tb.key} onClick={() => setTab(tb.key)} style={{ display: "flex", alignItems: "center", gap: 9, width: "100%", textAlign: "left", background: active ? (dark ? "hsl(222,40%,20%)" : C.bgInput) : "transparent", border: `1px solid ${active ? C.border : "transparent"}`, borderLeft: active ? `3px solid ${C.gradientA}` : "3px solid transparent", borderRadius: 8, padding: "9px 11px", cursor: "pointer", color: active ? C.text : C.textMuted, fontSize: 14, fontWeight: active ? 700 : 400, transition: "all 0.15s" }}>
-                <span style={{ fontSize: 15, lineHeight: 1, flexShrink: 0 }}>{tb.icon}</span>
+              <button
+                key={tb.key}
+                onClick={() => setTab(tb.key)}
+                style={{
+                  display: "flex", alignItems: "center", gap: 9,
+                  width: "100%", textAlign: "left",
+                  background: active ? (dark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)") : "transparent",
+                  borderTop: "none", borderRight: "none", borderBottom: "none",
+                  borderLeft: `3px solid ${active ? C.blue : "transparent"}`,
+                  borderRadius: "0 10px 10px 0",
+                  padding: "9px 12px 9px 10px",
+                  cursor: "pointer",
+                  color: active ? C.text : C.textMuted,
+                  fontSize: 14, fontWeight: active ? 500 : 400,
+                  transition: "all 0.18s", letterSpacing: "-0.02em",
+                }}
+              >
+                <span style={{ flexShrink: 0, opacity: active ? 1 : 0.6 }}>{tb.icon}</span>
                 {tb.label}
               </button>
             );
@@ -1163,111 +1546,169 @@ export default function App() {
 
         {/* Main content */}
         <div style={{ flex: 1, overflowY: "auto" }}>
-          <div style={{ maxWidth: tab === "chat" ? 9999 : 860, margin: "0 auto", padding: tab === "chat" ? "20px 20px 16px" : "28px 28px 60px" }}>
-        {tab === "dashboard" && (
-          <>
-            <Section title={t.connDetails} C={C}>
-              <Card C={C}>
-                <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                  <div>
-                    <div style={{ fontSize: 12, color: C.textDim, marginBottom: 6, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.07em" }}>Base URL</div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                      <code style={{ background: C.bgInput, border: `1px solid ${C.border}`, borderRadius: 6, padding: "6px 12px", fontSize: 14, color: C.cyan, fontFamily: "monospace", flex: 1, minWidth: 0, wordBreak: "break-all" }}>{origin}</code>
-                      <CopyButton text={origin} C={C} t={t} />
-                    </div>
-                  </div>
-                  <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 14 }}>
-                    <div style={{ fontSize: 12, color: C.textDim, marginBottom: 6, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.07em" }}>Auth Header</div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                      <code style={{ background: C.bgInput, border: `1px solid ${C.border}`, borderRadius: 6, padding: "6px 12px", fontSize: 13, color: C.orange, fontFamily: "monospace", flex: 1, minWidth: 0, wordBreak: "break-all" }}>{authHeader}</code>
-                      <CopyButton text={authHeader} C={C} t={t} />
-                    </div>
-                    <p style={{ fontSize: 12, color: C.textDim, marginTop: 8 }}>{t.proxyKeyHint(proxyApiKey)}</p>
-                  </div>
-                </div>
-              </Card>
-            </Section>
+          <div style={{
+            maxWidth: tab === "chat" ? 9999 : 860,
+            margin: "0 auto",
+            padding: tab === "chat" ? "20px 20px 16px" : "32px 32px 64px",
+          }}>
 
-            <Section title={t.apiEndpoints} C={C}>
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                {ENDPOINTS.map((ep) => {
-                  const tc = ep.type === "OpenAI" ? C.blue : ep.type === "Anthropic" ? C.orange : ep.type === "Responses" ? C.emerald : C.gray;
-                  const tb = ep.type === "OpenAI" ? C.blueDark : ep.type === "Anthropic" ? C.orangeDark : ep.type === "Responses" ? C.emeraldDark : C.grayDark;
-                  return (
-                    <Card key={ep.path} C={C}>
-                      <div style={{ display: "flex", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
-                        <MethodBadge method={ep.method} C={C} />
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 4 }}>
-                            <code style={{ fontFamily: "monospace", fontSize: 14, color: C.text, fontWeight: 600 }}>{ep.path}</code>
-                            <Badge color={tc} bg={tb}>{ep.type}</Badge>
-                          </div>
-                          <p style={{ fontSize: 13, color: C.textMuted, margin: 0 }}>{ep.desc}</p>
+            {/* ── Dashboard ── */}
+            {tab === "dashboard" && (
+              <>
+                <Section title={t.connDetails} C={C}>
+                  <Card C={C}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                      <div>
+                        <div style={{ fontSize: 11, color: C.textDim, marginBottom: 8, fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.07em" }}>Base URL</div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                          <code style={{
+                            background: C.bgInput, borderRadius: 8, padding: "7px 12px",
+                            fontSize: 14, color: C.blue,
+                            fontFamily: "'SF Mono','Fira Code',monospace",
+                            flex: 1, minWidth: 0, wordBreak: "break-all", letterSpacing: "-0.01em",
+                          }}>{origin}</code>
+                          <CopyButton text={origin} C={C} t={t} />
                         </div>
-                        <CopyButton text={`${origin}${ep.path}`} label={t.copyUrl} C={C} t={t} />
                       </div>
-                    </Card>
-                  );
-                })}
-              </div>
-            </Section>
-
-            <Section title={t.availableModels} C={C}>
-              <ModelGroup title="OpenAI" models={OPENAI_MODELS} color={C.blue} bg={C.blueDark} C={C} />
-              <ModelGroup title="Anthropic" models={ANTHROPIC_MODELS} color={C.orange} bg={C.orangeDark} C={C} />
-              <ModelGroup title="Google Gemini" models={GEMINI_MODELS} color={C.emerald} bg={C.emeraldDark} C={C} />
-            </Section>
-
-            <Section title={t.setupGuide} C={C}>
-              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                {t.steps.map((step, i) => (
-                  <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 14, background: C.bgCard, border: `1px solid ${C.border}`, borderRadius: 10, padding: "14px 16px" }}>
-                    <div style={{ width: 30, height: 30, borderRadius: "50%", background: `linear-gradient(135deg, ${C.gradientA}, ${C.gradientB})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: "#fff", flexShrink: 0 }}>{i + 1}</div>
-                    <div>
-                      <div style={{ fontWeight: 600, fontSize: 14, color: C.text, marginBottom: 4 }}>{step.title}</div>
-                      <p style={{ fontSize: 13, color: C.textMuted, margin: 0 }}>{step.desc}</p>
-                      {step.note && <p style={{ fontSize: 12, color: C.textDim, marginTop: 6 }}>{t.notePrefix}{step.note}</p>}
+                      <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 16 }}>
+                        <div style={{ fontSize: 11, color: C.textDim, marginBottom: 8, fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.07em" }}>Auth Header</div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                          <code style={{
+                            background: C.bgInput, borderRadius: 8, padding: "7px 12px",
+                            fontSize: 13, color: C.orange,
+                            fontFamily: "'SF Mono','Fira Code',monospace",
+                            flex: 1, minWidth: 0, wordBreak: "break-all", letterSpacing: "-0.01em",
+                          }}>{authHeader}</code>
+                          <CopyButton text={authHeader} C={C} t={t} />
+                        </div>
+                        <p style={{ fontSize: 12, color: C.textDim, marginTop: 8, letterSpacing: "-0.01em" }}>{t.proxyKeyHint(proxyApiKey)}</p>
+                      </div>
                     </div>
+                  </Card>
+                </Section>
+
+                <Section title={t.apiEndpoints} C={C}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                    {ENDPOINTS.map((ep) => {
+                      const tc = ep.type === "OpenAI" ? C.blue : ep.type === "Anthropic" ? C.orange : ep.type === "Responses" ? C.emerald : C.gray;
+                      const tb = ep.type === "OpenAI" ? C.blueDark : ep.type === "Anthropic" ? C.orangeDark : ep.type === "Responses" ? C.emeraldDark : C.grayDark;
+                      return (
+                        <Card key={ep.path} C={C}>
+                          <div style={{ display: "flex", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
+                            <MethodBadge method={ep.method} C={C} />
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 5 }}>
+                                <code style={{ fontFamily: "'SF Mono','Fira Code',monospace", fontSize: 14, color: C.text, fontWeight: 500, letterSpacing: "-0.01em" }}>{ep.path}</code>
+                                <span style={{ background: tb, color: tc, borderRadius: 5, padding: "2px 8px", fontSize: 10, fontWeight: 600, letterSpacing: "0.03em" }}>{ep.type}</span>
+                              </div>
+                              <p style={{ fontSize: 13, color: C.textMuted, margin: 0, letterSpacing: "-0.01em", lineHeight: 1.55 }}>{ep.desc}</p>
+                            </div>
+                            <CopyButton text={`${origin}${ep.path}`} label={t.copyUrl} C={C} t={t} />
+                          </div>
+                        </Card>
+                      );
+                    })}
                   </div>
-                ))}
-              </div>
-            </Section>
+                </Section>
 
-            <Section title={t.quickTest} C={C}>
-              <Card C={C} style={{ padding: 0, overflow: "hidden" }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 16px", borderBottom: `1px solid ${C.border}`, background: C.bgInput }}>
-                  <span style={{ fontSize: 12, color: C.textMuted, fontWeight: 600 }}>{t.curlLabel}</span>
-                  <CopyButton text={curlExample} label={t.copyCmd} C={C} t={t} />
+                <Section title={t.availableModels} C={C}>
+                  <ModelGroup title="OpenAI" models={OPENAI_MODELS} color={C.blue} bg={C.blueDark} C={C} />
+                  <ModelGroup title="Anthropic" models={ANTHROPIC_MODELS} color={C.orange} bg={C.orangeDark} C={C} />
+                  <ModelGroup title="Google Gemini" models={GEMINI_MODELS} color={C.emerald} bg={C.emeraldDark} C={C} />
+                </Section>
+
+                <Section title={t.setupGuide} C={C}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                    {t.steps.map((step, i) => (
+                      <div key={i} style={{
+                        display: "flex", alignItems: "flex-start", gap: 16,
+                        background: C.bgCard, borderRadius: 14, padding: "16px 18px",
+                        boxShadow: C.shadow,
+                      }}>
+                        <div style={{
+                          width: 28, height: 28, borderRadius: "50%",
+                          background: C.bgInput,
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                          fontSize: 12, fontWeight: 600, color: C.textMuted, flexShrink: 0,
+                        }}>{i + 1}</div>
+                        <div>
+                          <div style={{ fontWeight: 500, fontSize: 14, color: C.text, marginBottom: 4, letterSpacing: "-0.02em" }}>{step.title}</div>
+                          <p style={{ fontSize: 13, color: C.textMuted, margin: 0, letterSpacing: "-0.01em", lineHeight: 1.55 }}>{step.desc}</p>
+                          {step.note && <p style={{ fontSize: 12, color: C.textDim, marginTop: 6, letterSpacing: "-0.01em" }}>{t.notePrefix}{step.note}</p>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </Section>
+
+                <Section title={t.quickTest} C={C}>
+                  <div style={{
+                    background: C.bgCard, borderRadius: 14, overflow: "hidden",
+                    boxShadow: C.shadow,
+                  }}>
+                    <div style={{
+                      display: "flex", alignItems: "center", justifyContent: "space-between",
+                      padding: "10px 16px", borderBottom: `1px solid ${C.border}`,
+                      background: C.bgInput,
+                    }}>
+                      <span style={{ fontSize: 12, color: C.textMuted, fontWeight: 500, letterSpacing: "-0.01em" }}>{t.curlLabel}</span>
+                      <CopyButton text={curlExample} label={t.copyCmd} C={C} t={t} />
+                    </div>
+                    <pre style={{
+                      margin: 0, padding: "16px 20px",
+                      fontSize: 13, fontFamily: "'SF Mono','Fira Code',monospace",
+                      color: C.text, overflowX: "auto", lineHeight: 1.7,
+                      background: C.bgCard, letterSpacing: "-0.01em",
+                    }}>
+                      <span style={{ color: C.blue }}>curl</span>{" "}<span style={{ color: C.orange }}>{origin}/v1/chat/completions</span>{" "}{`\\`}{"\n"}{"  "}
+                      <span style={{ color: C.textMuted }}>-H</span>{" "}<span style={{ color: C.green }}>"Content-Type: application/json"</span>{" "}{`\\`}{"\n"}{"  "}
+                      <span style={{ color: C.textMuted }}>-H</span>{" "}<span style={{ color: C.green }}>{`"Authorization: Bearer ${proxyApiKey}"`}</span>{" "}{`\\`}{"\n"}{"  "}
+                      <span style={{ color: C.textMuted }}>-d</span>{" "}<span style={{ color: C.purple }}>{`'{"model":"gemini-2.5-flash","messages":[{"role":"user","content":"Hello!"}],"stream":false}'`}</span>
+                    </pre>
+                  </div>
+                </Section>
+
+                <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 24, textAlign: "center", fontSize: 12, color: C.textDim, letterSpacing: "-0.01em" }}>
+                  {t.footerPowered}{" "}
+                  <span style={{ color: C.blue }}>OpenAI</span> +{" "}
+                  <span style={{ color: C.orange }}>Anthropic</span> +{" "}
+                  <span style={{ color: C.emerald }}>Gemini</span>{" "}
+                  {t.footerVia}{" "}<span style={{ color: C.blue }}>Replit AI Integrations</span>{" "}
+                  {t.footerSuffix}
                 </div>
-                <pre style={{ margin: 0, padding: "16px 20px", fontSize: 13, fontFamily: "monospace", color: C.text, overflowX: "auto", lineHeight: 1.7, background: C.bgCard }}>
-                  <span style={{ color: C.cyan }}>curl</span>{" "}<span style={{ color: C.orange }}>{origin}/v1/chat/completions</span>{" "}{`\\`}{"\n"}{"  "}
-                  <span style={{ color: C.textMuted }}>-H</span>{" "}<span style={{ color: C.green }}>"Content-Type: application/json"</span>{" "}{`\\`}{"\n"}{"  "}
-                  <span style={{ color: C.textMuted }}>-H</span>{" "}<span style={{ color: C.green }}>{`"Authorization: Bearer ${proxyApiKey}"`}</span>{" "}{`\\`}{"\n"}{"  "}
-                  <span style={{ color: C.textMuted }}>-d</span>{" "}<span style={{ color: C.purple }}>{`'{"model":"gemini-2.5-flash","messages":[{"role":"user","content":"Hello!"}],"stream":false}'`}</span>
-                </pre>
-              </Card>
-            </Section>
+              </>
+            )}
 
-            <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 24, textAlign: "center", fontSize: 12, color: C.textDim }}>
-              {t.footerPowered}{" "}<span style={{ color: C.blue }}>OpenAI</span> + <span style={{ color: C.orange }}>Anthropic</span> + <span style={{ color: C.emerald }}>Gemini</span>{" "}{t.footerVia}{" "}<span style={{ color: C.cyan }}>Replit AI Integrations</span>{" "}{t.footerSuffix}
-            </div>
-          </>
-        )}
+            {/* ── Chat ── */}
+            {tab === "chat" && (
+              <ChatTab
+                C={C} t={t} proxyApiKey={proxyApiKey} adminToken={adminToken}
+                onKeyRefresh={setProxyApiKey} onForceRelogin={handleForceRelogin}
+                initModel={chatInitModel}
+              />
+            )}
 
-        {tab === "chat" && (
-          <ChatTab C={C} t={t} proxyApiKey={proxyApiKey} adminToken={adminToken} onKeyRefresh={setProxyApiKey} onForceRelogin={handleForceRelogin} initModel={chatInitModel} />
-        )}
+            {/* ── Models ── */}
+            {tab === "models" && (
+              <ModelsTab C={C} t={t} onGoChat={handleGoChat} adminToken={adminToken} />
+            )}
 
-        {tab === "models" && (
-          <ModelsTab C={C} t={t} onGoChat={handleGoChat} adminToken={adminToken} />
-        )}
-
-        {tab === "settings" && (
-          <SettingsTab C={C} t={t} adminToken={adminToken} proxyApiKey={proxyApiKey} openaiDirectKeySet={openaiDirectKeySet} openaiDirectKeyFromEnv={openaiDirectKeyFromEnv} onProxyKeyChange={setProxyApiKey} onOAIKeyChange={setOpenaiDirectKeySet} />
-        )}
+            {/* ── Settings ── */}
+            {tab === "settings" && (
+              <SettingsTab
+                C={C} t={t} adminToken={adminToken} proxyApiKey={proxyApiKey}
+                openaiDirectKeySet={openaiDirectKeySet} openaiDirectKeyFromEnv={openaiDirectKeyFromEnv}
+                onProxyKeyChange={setProxyApiKey} onOAIKeyChange={setOpenaiDirectKeySet}
+              />
+            )}
           </div>
         </div>
       </div>
+
+      {/* Blink cursor keyframe */}
+      <style>{`
+        @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+      `}</style>
     </div>
   );
 }
