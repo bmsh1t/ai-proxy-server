@@ -21,20 +21,6 @@ export interface SyncCache {
   syncedAt: number;
 }
 
-let _cache: SyncCache | null = null;
-
-async function tryFetch(url: string, headers: Record<string, string> = {}): Promise<unknown> {
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 20000);
-  try {
-    const resp = await fetch(url, { headers, signal: ctrl.signal });
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    return resp.json();
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
 // ── Static fallback lists (comprehensive, curated) ────────────────────────────
 
 const OPENAI_STATIC: SyncedModel[] = [
@@ -56,9 +42,9 @@ const OPENAI_STATIC: SyncedModel[] = [
 ];
 
 const ANTHROPIC_STATIC: SyncedModel[] = [
-  { id: "claude-opus-4-5",          provider: "anthropic", ownedBy: "anthropic", contextLength: 200_000, name: "Claude Opus 4.5" },
-  { id: "claude-sonnet-4-5",        provider: "anthropic", ownedBy: "anthropic", contextLength: 200_000, name: "Claude Sonnet 4.5" },
-  { id: "claude-haiku-4-5",         provider: "anthropic", ownedBy: "anthropic", contextLength: 200_000, name: "Claude Haiku 4.5" },
+  { id: "claude-opus-4-5",            provider: "anthropic", ownedBy: "anthropic", contextLength: 200_000, name: "Claude Opus 4.5" },
+  { id: "claude-sonnet-4-5",          provider: "anthropic", ownedBy: "anthropic", contextLength: 200_000, name: "Claude Sonnet 4.5" },
+  { id: "claude-haiku-4-5",           provider: "anthropic", ownedBy: "anthropic", contextLength: 200_000, name: "Claude Haiku 4.5" },
   { id: "claude-3-7-sonnet-20250219", provider: "anthropic", ownedBy: "anthropic", contextLength: 200_000, name: "Claude 3.7 Sonnet" },
   { id: "claude-3-5-sonnet-20241022", provider: "anthropic", ownedBy: "anthropic", contextLength: 200_000, name: "Claude 3.5 Sonnet (Oct 2024)" },
   { id: "claude-3-5-sonnet-20240620", provider: "anthropic", ownedBy: "anthropic", contextLength: 200_000, name: "Claude 3.5 Sonnet (Jun 2024)" },
@@ -71,19 +57,42 @@ const ANTHROPIC_STATIC: SyncedModel[] = [
 ];
 
 const GEMINI_STATIC: SyncedModel[] = [
-  { id: "gemini-2.5-pro-preview-05-06",    provider: "gemini", ownedBy: "gemini", contextLength: 1_048_576, name: "Gemini 2.5 Pro Preview" },
-  { id: "gemini-2.5-pro-exp-03-25",        provider: "gemini", ownedBy: "gemini", contextLength: 1_048_576, name: "Gemini 2.5 Pro Exp" },
-  { id: "gemini-2.5-flash-preview-04-17",  provider: "gemini", ownedBy: "gemini", contextLength: 1_048_576, name: "Gemini 2.5 Flash Preview" },
-  { id: "gemini-2.5-pro",                  provider: "gemini", ownedBy: "gemini", contextLength: 2_000_000, name: "Gemini 2.5 Pro" },
-  { id: "gemini-2.5-flash",                provider: "gemini", ownedBy: "gemini", contextLength: 1_048_576, name: "Gemini 2.5 Flash" },
-  { id: "gemini-2.0-flash",                provider: "gemini", ownedBy: "gemini", contextLength: 1_048_576, name: "Gemini 2.0 Flash" },
-  { id: "gemini-2.0-flash-lite",           provider: "gemini", ownedBy: "gemini", contextLength: 1_048_576, name: "Gemini 2.0 Flash-Lite" },
-  { id: "gemini-2.0-flash-thinking-exp",   provider: "gemini", ownedBy: "gemini", contextLength: 32_767,    name: "Gemini 2.0 Flash Thinking" },
-  { id: "gemini-1.5-pro-002",              provider: "gemini", ownedBy: "gemini", contextLength: 2_000_000, name: "Gemini 1.5 Pro 002" },
-  { id: "gemini-1.5-flash-002",            provider: "gemini", ownedBy: "gemini", contextLength: 1_000_000, name: "Gemini 1.5 Flash 002" },
-  { id: "gemini-1.5-flash-8b",             provider: "gemini", ownedBy: "gemini", contextLength: 1_000_000, name: "Gemini 1.5 Flash 8B" },
-  { id: "gemini-1.0-pro",                  provider: "gemini", ownedBy: "gemini", contextLength: 32_760,    name: "Gemini 1.0 Pro" },
+  { id: "gemini-2.5-pro-preview-05-06",   provider: "gemini", ownedBy: "gemini", contextLength: 1_048_576, name: "Gemini 2.5 Pro Preview" },
+  { id: "gemini-2.5-pro-exp-03-25",       provider: "gemini", ownedBy: "gemini", contextLength: 1_048_576, name: "Gemini 2.5 Pro Exp" },
+  { id: "gemini-2.5-flash-preview-04-17", provider: "gemini", ownedBy: "gemini", contextLength: 1_048_576, name: "Gemini 2.5 Flash Preview" },
+  { id: "gemini-2.5-pro",                 provider: "gemini", ownedBy: "gemini", contextLength: 2_000_000, name: "Gemini 2.5 Pro" },
+  { id: "gemini-2.5-flash",               provider: "gemini", ownedBy: "gemini", contextLength: 1_048_576, name: "Gemini 2.5 Flash" },
+  { id: "gemini-2.0-flash",               provider: "gemini", ownedBy: "gemini", contextLength: 1_048_576, name: "Gemini 2.0 Flash" },
+  { id: "gemini-2.0-flash-lite",          provider: "gemini", ownedBy: "gemini", contextLength: 1_048_576, name: "Gemini 2.0 Flash-Lite" },
+  { id: "gemini-2.0-flash-thinking-exp",  provider: "gemini", ownedBy: "gemini", contextLength: 32_767,    name: "Gemini 2.0 Flash Thinking" },
+  { id: "gemini-1.5-pro-002",             provider: "gemini", ownedBy: "gemini", contextLength: 2_000_000, name: "Gemini 1.5 Pro 002" },
+  { id: "gemini-1.5-flash-002",           provider: "gemini", ownedBy: "gemini", contextLength: 1_000_000, name: "Gemini 1.5 Flash 002" },
+  { id: "gemini-1.5-flash-8b",            provider: "gemini", ownedBy: "gemini", contextLength: 1_000_000, name: "Gemini 1.5 Flash 8B" },
+  { id: "gemini-1.0-pro",                 provider: "gemini", ownedBy: "gemini", contextLength: 32_760,    name: "Gemini 1.0 Pro" },
 ];
+
+// Fix 1: Pre-populate cache with static data immediately — never null at startup
+let _cache: SyncCache = {
+  results: [
+    { provider: "openai",    models: OPENAI_STATIC,    ok: true, source: "static", fetchedAt: Date.now() },
+    { provider: "anthropic", models: ANTHROPIC_STATIC, ok: true, source: "static", fetchedAt: Date.now() },
+    { provider: "gemini",    models: GEMINI_STATIC,    ok: true, source: "static", fetchedAt: Date.now() },
+    { provider: "openrouter", models: [],              ok: true, source: "static", fetchedAt: Date.now() },
+  ],
+  syncedAt: Date.now(),
+};
+
+async function tryFetch(url: string, headers: Record<string, string> = {}): Promise<unknown> {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 15_000);
+  try {
+    const resp = await fetch(url, { headers, signal: ctrl.signal });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    return resp.json();
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 // ── Provider fetch functions ──────────────────────────────────────────────────
 
@@ -103,7 +112,10 @@ async function fetchOpenAIModels(): Promise<ProviderSyncResult> {
             !m.id.includes("-preview-2024") && !m.id.includes("vision-preview"))
           .map((m) => ({ id: m.id, provider: "openai" as const, ownedBy: "openai", created: m.created }))
           .sort((a, b) => a.id.localeCompare(b.id));
-        return { provider: "openai", models, ok: true, source: "live", fetchedAt };
+        // Fix 2: only use live result if we actually got usable models after filtering
+        if (models.length > 0) {
+          return { provider: "openai", models, ok: true, source: "live", fetchedAt };
+        }
       }
     } catch { /* fall through to static */ }
   }
@@ -125,7 +137,10 @@ async function fetchAnthropicModels(): Promise<ProviderSyncResult> {
         const models: SyncedModel[] = raw
           .filter((m) => m.id.startsWith("claude-"))
           .map((m) => ({ id: m.id, provider: "anthropic" as const, ownedBy: "anthropic", name: m.display_name }));
-        return { provider: "anthropic", models, ok: true, source: "live", fetchedAt };
+        // Fix 2: only use live result if we actually got usable models after filtering
+        if (models.length > 0) {
+          return { provider: "anthropic", models, ok: true, source: "live", fetchedAt };
+        }
       }
     } catch { /* fall through to static */ }
   }
@@ -155,7 +170,10 @@ async function fetchGeminiModels(): Promise<ProviderSyncResult> {
             ownedBy: "gemini",
             name: m.displayName,
           }));
-        return { provider: "gemini", models, ok: true, source: "live", fetchedAt };
+        // Fix 2: only use live result if we actually got usable models after filtering
+        if (models.length > 0) {
+          return { provider: "gemini", models, ok: true, source: "live", fetchedAt };
+        }
       }
     } catch { /* fall through to static */ }
   }
@@ -164,7 +182,6 @@ async function fetchGeminiModels(): Promise<ProviderSyncResult> {
 
 async function fetchOpenRouterModels(): Promise<ProviderSyncResult> {
   const fetchedAt = Date.now();
-  // Use openrouter.ai directly — public endpoint, no auth required for listing
   const directUrl = "https://openrouter.ai/api/v1/models";
   try {
     const data = await tryFetch(directUrl, {
@@ -198,12 +215,19 @@ export async function syncAllModels(): Promise<SyncCache> {
     fetchOpenRouterModels(),
   ]);
 
+  const providers = ["openai", "anthropic", "gemini", "openrouter"] as const;
   const results: ProviderSyncResult[] = settled.map((r, i) => {
-    const providers = ["openai", "anthropic", "gemini", "openrouter"] as const;
     if (r.status === "fulfilled") return r.value;
+    // Fix 2: on unexpected rejection, use the provider's static fallback
+    const staticFallbacks: Record<string, SyncedModel[]> = {
+      openai: OPENAI_STATIC,
+      anthropic: ANTHROPIC_STATIC,
+      gemini: GEMINI_STATIC,
+      openrouter: [],
+    };
     return {
       provider: providers[i],
-      models: [],
+      models: staticFallbacks[providers[i]] ?? [],
       ok: false,
       error: r.reason?.message ?? "Unknown error",
       source: "static" as const,
@@ -211,14 +235,30 @@ export async function syncAllModels(): Promise<SyncCache> {
     };
   });
 
-  _cache = { results, syncedAt: Date.now() };
+  // Fix 2: guarantee each of the three main providers always has at least its static list
+  const ensured = results.map((r) => {
+    if (r.models.length > 0) return r;
+    const staticFallbacks: Record<string, SyncedModel[]> = {
+      openai: OPENAI_STATIC,
+      anthropic: ANTHROPIC_STATIC,
+      gemini: GEMINI_STATIC,
+      openrouter: [],
+    };
+    return { ...r, models: staticFallbacks[r.provider] ?? [], source: "static" as const };
+  });
+
+  _cache = { results: ensured, syncedAt: Date.now() };
   return _cache;
 }
+
+// Fix 3: periodic re-sync every 30 minutes to keep the model list fresh
+const RESYNC_INTERVAL_MS = 30 * 60 * 1_000;
+setInterval(() => { void syncAllModels(); }, RESYNC_INTERVAL_MS);
 
 export function getSyncCache(): SyncCache | null {
   return _cache;
 }
 
 export function getAllSyncedModels(): SyncedModel[] {
-  return _cache?.results.flatMap((r) => r.models) ?? [];
+  return _cache.results.flatMap((r) => r.models);
 }
