@@ -4,7 +4,7 @@ import { Github } from "lucide-react";
 const PROJECT_NAME = "replit2-by-kilig";
 const PROJECT_AUTHOR = "by kilig";
 const PROJECT_REPO_URL = "https://github.com/kilig6666/ai-proxy-server";
-const PROJECT_VERSION = "v5.2";
+const PROJECT_VERSION = "V6.0";
 const PROJECT_TAGLINE = "OpenAI · Anthropic · Gemini · OpenRouter";
 const PROJECT_LOGO_URL = new URL("../../../scripts/src/图片.jpg", import.meta.url).href;
 
