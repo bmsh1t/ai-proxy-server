@@ -48,6 +48,7 @@ export const PROXY_MODEL_CATALOG: ProxyModelDefinition[] = [
   { id: "gpt-4o-mini", provider: "openai", ownedBy: "openai", routes: ["/v1/chat/completions", "/v1/responses"], thinking: NO_THINKING, vision: WITH_VISION },
   { id: "gpt-5.3-codex", provider: "openai", ownedBy: "openai", routes: ["/v1/chat/completions", "/v1/responses"], thinking: OPENAI_THINKING, vision: WITH_VISION },
   { id: "gpt-5.2-codex", provider: "openai", ownedBy: "openai", routes: ["/v1/chat/completions", "/v1/responses"], thinking: OPENAI_THINKING, vision: WITH_VISION },
+  { id: "claude-opus-4-7", provider: "anthropic", ownedBy: "anthropic", routes: ["/v1/chat/completions", "/v1/messages"], thinking: CLAUDE_ADAPTIVE_MAX_THINKING, vision: WITH_VISION },
   { id: "claude-opus-4-6", provider: "anthropic", ownedBy: "anthropic", routes: ["/v1/chat/completions", "/v1/messages"], thinking: CLAUDE_ADAPTIVE_MAX_THINKING, vision: WITH_VISION },
   { id: "claude-opus-4-5", provider: "anthropic", ownedBy: "anthropic", routes: ["/v1/chat/completions", "/v1/messages"], thinking: CLAUDE_BUDGET_THINKING, vision: WITH_VISION },
   { id: "claude-opus-4-1", provider: "anthropic", ownedBy: "anthropic", routes: ["/v1/chat/completions", "/v1/messages"], thinking: CLAUDE_BUDGET_THINKING, vision: WITH_VISION },

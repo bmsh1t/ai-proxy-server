@@ -25,6 +25,7 @@ Express.js backend serving at `/api` and `/v1`.
 - `/v1/models` — list available models (requires Bearer token)
 - `/v1/chat/completions` — OpenAI-compatible chat completions (supports GPT + Claude models, streaming, tool calls)
 - `/v1/messages` — Anthropic native Messages API (supports Claude + GPT models, streaming, tool use)
+- Anthropic catalog includes `claude-opus-4-7`.
 
 **Dependencies**: `openai@^6`, `@anthropic-ai/sdk@^0.82`
 

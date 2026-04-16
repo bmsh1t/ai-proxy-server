@@ -706,10 +706,11 @@ ai-proxy-server/
 | `gpt-5.3-codex` | `/v1/chat/completions` `/v1/responses` | 支持 | 支持 |
 | `gpt-5.2-codex` | `/v1/chat/completions` `/v1/responses` | 支持 | 支持 |
 
-### 5.3 Anthropic（6 个）
+### 5.3 Anthropic（7 个）
 
 | 模型 ID | 路由 | Vision | Thinking |
 |---|---|---|---|
+| `claude-opus-4-7` | `/v1/chat/completions` `/v1/messages` | 支持 | 支持 |
 | `claude-opus-4-6` | `/v1/chat/completions` `/v1/messages` | 支持 | 支持 |
 | `claude-opus-4-5` | `/v1/chat/completions` `/v1/messages` | 支持 | 支持 |
 | `claude-opus-4-1` | `/v1/chat/completions` `/v1/messages` | 支持 | 支持 |

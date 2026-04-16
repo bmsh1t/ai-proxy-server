@@ -290,7 +290,8 @@ const OPENAI_MODELS: ModelMeta[] = [
   { id: "o3-mini",        note: "Reasoning",    ctx: "200K", caps: ["stream","reasoning"],                        route: "/v1/chat/completions" },
 ];
 const ANTHROPIC_MODELS: ModelMeta[] = [
-  { id: "claude-opus-4-6",   note: "Most capable", ctx: "200K", caps: ["stream","tools","vision","json","reasoning"], route: "/v1/chat/completions · /v1/messages" },
+  { id: "claude-opus-4-7",   note: "Most capable", ctx: "200K", caps: ["stream","tools","vision","json","reasoning"], route: "/v1/chat/completions · /v1/messages" },
+  { id: "claude-opus-4-6",                          ctx: "200K", caps: ["stream","tools","vision","json","reasoning"], route: "/v1/chat/completions · /v1/messages" },
   { id: "claude-opus-4-5",                          ctx: "200K", caps: ["stream","tools","vision","json","reasoning"], route: "/v1/chat/completions · /v1/messages" },
   { id: "claude-opus-4-1",                          ctx: "200K", caps: ["stream","tools","vision","json","reasoning"], route: "/v1/chat/completions · /v1/messages" },
   { id: "claude-sonnet-4-6", note: "Recommended",  ctx: "200K", caps: ["stream","tools","vision","json","reasoning"], route: "/v1/chat/completions · /v1/messages" },
