@@ -9,6 +9,11 @@ import { getModelDefinition, listModelObjects, requestHasVisionInput, supportsVi
 import { getAllSyncedModels } from "../lib/model-sync.js";
 import { normalizeSamplingParams } from "../lib/sampling.js";
 import {
+  AnthropicThinkingStreamSanitizer,
+  stripInvalidAnthropicThinkingFromContent,
+  stripInvalidAnthropicThinkingFromMessages,
+} from "../lib/anthropic-thinking.js";
+import {
   buildAnthropicThinkingPayload,
   buildGeminiThinkingConfig,
   buildOpenAIReasoningEffort,
@@ -883,6 +888,12 @@ function sanitizeAnthropicPayload(parts: AnthropicPayloadParts): AnthropicPayloa
     removedPaths,
   };
 
+  result.messages = stripInvalidAnthropicThinkingFromMessages(
+    result.messages,
+    removedPaths,
+    "messages",
+  ) as Anthropic.MessageParam[];
+
   if (parts.system !== undefined) {
     result.system = sanitizeAnthropicNode(parts.system, "system", removedPaths) as Anthropic.MessageCreateParamsNonStreaming["system"];
   }
@@ -898,8 +909,11 @@ function convertAnthropicToOpenAI(anthropicMsg: Anthropic.Message, model: string
   const toolCalls: OpenAI.ChatCompletionMessageToolCall[] = [];
   let textContent = "";
   const reasoningTexts: string[] = [];
+  const filteredContent = stripInvalidAnthropicThinkingFromContent(
+    anthropicMsg.content,
+  ) as Anthropic.Message["content"];
 
-  for (const block of anthropicMsg.content) {
+  for (const block of filteredContent) {
     if (block.type === "text") textContent += block.text;
     else if (block.type === "thinking") reasoningTexts.push(block.thinking);
     else if (block.type === "tool_use") {
@@ -2137,14 +2151,27 @@ router.post("/messages", requireAuth, async (req: Request, res: Response) => {
         const anthropicStream = anthropic.messages.stream(anthropicParams, anthropicRequestOptions);
         let streamInputTokens = 0;
         let streamOutputTokens = 0;
+        let strippedThinkingBlocks = 0;
+        const streamSanitizer = new AnthropicThinkingStreamSanitizer();
         for await (const event of anthropicStream) {
           if (event.type === "message_start") {
             streamInputTokens = event.message.usage?.input_tokens ?? streamInputTokens;
           } else if (event.type === "message_delta") {
             streamOutputTokens = event.usage?.output_tokens ?? streamOutputTokens;
           }
-          res.write(`event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`);
-          (res as any).flush?.();
+          const sanitizedEvents = streamSanitizer.push(event as unknown as Record<string, unknown>);
+          strippedThinkingBlocks += streamSanitizer.drainDroppedBlocks();
+          for (const sanitizedEvent of sanitizedEvents) {
+            res.write(`event: ${sanitizedEvent.type}\ndata: ${JSON.stringify(sanitizedEvent)}\n\n`);
+            (res as any).flush?.();
+          }
+        }
+        strippedThinkingBlocks += streamSanitizer.drainDroppedBlocks();
+        if (strippedThinkingBlocks > 0) {
+          req.log.warn(
+            { model, provider: "anthropic", strippedThinkingBlocks },
+            "Stripped invalid upstream Anthropic thinking blocks from stream",
+          );
         }
         const latencyMs = Date.now() - startTs;
         req.log.info({ model, provider: "anthropic", latencyMs, stream: true, promptTokens: streamInputTokens, completionTokens: streamOutputTokens }, "Anthropic native stream complete");
@@ -2176,6 +2203,21 @@ router.post("/messages", requireAuth, async (req: Request, res: Response) => {
       const finalMsg = await withRetry(() =>
         anthropic.messages.stream(anthropicParams, anthropicRequestOptions).finalMessage()
       );
+      const removedPaths: string[] = [];
+      const sanitizedContent = stripInvalidAnthropicThinkingFromContent(
+        finalMsg.content,
+        removedPaths,
+        "content",
+      ) as Anthropic.Message["content"];
+      const responseMsg = removedPaths.length > 0
+        ? { ...finalMsg, content: sanitizedContent }
+        : finalMsg;
+      if (removedPaths.length > 0) {
+        req.log.warn(
+          { model, provider: "anthropic", removedPaths },
+          "Stripped invalid upstream Anthropic thinking blocks from response",
+        );
+      }
       const promptTokens = finalMsg.usage.input_tokens;
       const completionTokens = finalMsg.usage.output_tokens;
       const latencyMs = Date.now() - startTs;
@@ -2190,7 +2232,7 @@ router.post("/messages", requireAuth, async (req: Request, res: Response) => {
         latencyMs,
         cached: false,
       });
-      res.json(finalMsg);
+      res.json(responseMsg);
     } catch (err: unknown) {
       req.log.error({ err, model, provider: "anthropic" }, "Anthropic native error");
       sendAnthropicProviderError(res, err);
