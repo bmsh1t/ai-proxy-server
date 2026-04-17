@@ -296,7 +296,7 @@ replit2-by-kilig
   - `OPENAI_DIRECT_KEY`
 - 默认回退值：
   - `proxyApiKey = admin999`
-  - `portalPassword = admin999`
+  - `portalPassword = admin9998`
   - `openaiDirectKey = ""`
 - admin token：
   - 24 小时有效
@@ -876,7 +876,7 @@ x-api-key: <proxyApiKey>
 请求：
 
 ```json
-{ "password": "admin999" }
+{ "password": "admin9998" }
 ```
 
 响应字段：
@@ -968,7 +968,7 @@ x-api-key: <proxyApiKey>
 ```json
 {
   "proxyApiKey": "admin999",
-  "portalPassword": "admin999",
+  "portalPassword": "admin9998",
   "openaiDirectKey": ""
 }
 ```

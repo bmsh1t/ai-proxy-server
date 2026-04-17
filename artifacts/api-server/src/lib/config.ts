@@ -16,7 +16,7 @@ const CONFIG_PATH = path.resolve(
 
 const DEFAULTS: AppConfig = {
   proxyApiKey: process.env.PROXY_API_KEY ?? "admin999",
-  portalPassword: process.env.PORTAL_PASSWORD ?? "admin999",
+  portalPassword: process.env.PORTAL_PASSWORD ?? "admin9998",
   openaiDirectKey: process.env.OPENAI_DIRECT_KEY ?? "",
 };
 
